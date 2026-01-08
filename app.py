@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import pyodbc
 
 st.set_page_config(
     layout="wide",
@@ -10,19 +9,7 @@ st.set_page_config(
 
 @st.cache_data
 def load_data():
-    conn = pyodbc.connect(
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-        f"SERVER={st.secrets['DB_SERVER']};"
-        f"DATABASE={st.secrets['DB_DATABASE']};"
-        f"UID={st.secrets['DB_USER']};"
-        f"PWD={st.secrets['DB_PASSWORD']};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=yes;"
-        "Connection Timeout=50;"
-    )
-    df = pd.read_sql("SELECT * FROM v_desvio_padrao", conn)
-    conn.close()
-    return df
+    return pd.read_excel("data/v_desvio_padrao_2025.xlsx")
 
 df = load_data()
 
