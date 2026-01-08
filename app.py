@@ -9,7 +9,7 @@ st.set_page_config(
 
 @st.cache_data
 def load_data():
-    return pd.read_excel("data/v_desvio_padrao_2025.xlsx")
+    return pd.read_excel("v_desvio_padrao_2025.xlsx")
 
 df = load_data()
 
