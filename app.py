@@ -26,7 +26,7 @@ tipo_os_selecionado = st.selectbox(
 )
 
 st.caption(
-    "**NR's** refere-se aos tipos **NR COL**, **NR IND** e **NR IMPROD**.\n "
+    "**NR's** refere-se aos tipos **COL**, **IND** e **IMPROD**.\n "
     "**RC** refere-se à **reativação sem instalação de medidor e ramal**."
 )
 
