@@ -18,8 +18,8 @@ st.title("Distribuição do Tempo Médio de Atendimento")
 st.markdown("""
 **Como interpretar o gráfico:**  
 Cada caixa representa a distribuição do tempo médio de atendimento por regional.  
-A linha central indica a mediana. Quanto maior a caixa, maior a variabilidade dos tempos.  
-Valores extremos indicam maior dispersão entre as regionais.
+A linha central mostra a mediana. Quanto maior a caixa, maior a variabilidade dos tempos.  
+Valores extremos indicam maior dispersão.
 """)
 
 tipos = sorted(df['tipo_os'].dropna().unique().tolist())
