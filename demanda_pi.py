@@ -231,9 +231,9 @@ st.markdown(
     """
 📌 **Como interpretar o Saldo Operacional Médio**
 
-- **Saldo > 0** → capacidade média supera a demanda (folga operacional)  
-- **Saldo ≈ 0** → sistema no limite (sensível a picos e imprevistos)  
-- **Saldo < 0** → demanda média maior que a capacidade (déficit estrutural)
+- **Saldo > 0** → capacidade média supera a demanda (ociosidade operacional)  
+- **Saldo ≈ 0** → sistema rodando no limite da capacidade operacional 
+- **Saldo < 0** → demanda média maior que a capacidade
 
 *Esse indicador representa o “fôlego” diário da operação.*
 """,
@@ -245,7 +245,8 @@ st.markdown("## 🚨 Taxa de Sobrecarga")
 fig3 = px.bar(
     resultado,
     x="REGIAO",
-    y="TAXA_SOBRECARGA"
+    y="TAXA DE SOBRECARGA",
+    text="TAXA_SOBRECARGA"
 )
 fig3.update_layout(yaxis_tickformat=".0%")
 fig3.update_traces(
@@ -258,12 +259,12 @@ st.markdown(
     """
 📌 **Como interpretar:**
 
-- **0–10%** → operação muito confortável  
+- **0–10%** → operação confortável  
 - **10–30%** → atenção  
 - **30–50%** → risco estrutural  
 - **>50%** → sistema subdimensionado  
 
-*Ela é o termômetro de stress da operação.*
+*Indicador do stress da operação - alta ou baixa demanda operacional.*
 """,
     unsafe_allow_html=False
 )
