@@ -245,7 +245,7 @@ st.markdown("## 🚨 Taxa de Sobrecarga")
 fig3 = px.bar(
     resultado,
     x="REGIAO",
-    y="TAXA DE SOBRECARGA",
+    y="TAXA_SOBRECARGA",
     text="TAXA_SOBRECARGA"
 )
 fig3.update_layout(yaxis_tickformat=".0%")
