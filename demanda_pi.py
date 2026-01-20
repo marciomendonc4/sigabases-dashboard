@@ -206,6 +206,10 @@ fig1 = px.bar(
     barmode="group",
     labels={"value": "OS por dia", "variable": "Indicador"}
 )
+fig1.update_traces(
+    texttemplate="%{text:.2f}",
+    textposition="outside"
+)
 st.plotly_chart(fig1, use_container_width=True)
 
 st.markdown("## 📉 Saldo Operacional Médio")
@@ -217,6 +221,10 @@ fig2 = px.bar(
     color_continuous_scale="RdYlGn"
 )
 fig2.update_layout(coloraxis_showscale=False)
+fig2.update_traces(
+    texttemplate="%{text:.2f}",
+    textposition="outside"
+)
 st.plotly_chart(fig2, use_container_width=True)
 
 st.markdown(
@@ -240,6 +248,10 @@ fig3 = px.bar(
     y="TAXA_SOBRECARGA"
 )
 fig3.update_layout(yaxis_tickformat=".0%")
+fig3.update_traces(
+    texttemplate="%{text:.2f}",
+    textposition="outside"
+)
 st.plotly_chart(fig3, use_container_width=True)
 
 st.markdown(
