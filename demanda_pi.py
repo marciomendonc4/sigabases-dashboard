@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Diagnóstico Operacional")
+st.title("Diagnóstico Operacional")
 st.subheader(
     "Premissas: Demanda, capacidade efetiva e indisponibilidade operacional"
 )
@@ -89,7 +89,7 @@ descricao_cenario = {
     )
 }
 
-st.markdown("### 🧭 Cenário em Análise")
+st.markdown("###Cenário em Análise")
 st.info(descricao_cenario[cenario])
 
 
@@ -183,7 +183,7 @@ c4.metric(
 
 #resumo
 
-st.markdown("## 📋 Diagnóstico por Região")
+st.markdown("## Diagnóstico por Região")
 
 st.dataframe(
     resultado.style.format({
@@ -198,7 +198,7 @@ st.dataframe(
 
 
 
-st.markdown("## ⚖️ Demanda x Capacidade")
+st.markdown("## Demanda x Capacidade")
 fig1 = px.bar(
     resultado,
     x="REGIAO",
@@ -213,7 +213,7 @@ fig1.update_traces(
 st.plotly_chart(fig1, use_container_width=True)
 
 
-st.markdown("## 📉 Saldo Operacional Médio")
+st.markdown("## Saldo Operacional Médio")
 
 fig2 = px.bar(
     resultado,
@@ -248,7 +248,7 @@ st.markdown(
 )
 
 
-st.markdown("## 🚨 Taxa de Sobrecarga")
+st.markdown("## Taxa de Sobrecarga")
 fig3 = px.bar(
     resultado,
     x="REGIAO",
@@ -278,7 +278,7 @@ st.markdown(
 
 
 
-st.markdown("## 🧠 Interpretação Automática")
+st.markdown("## Resultado")
 
 for _, row in resultado.iterrows():
     if row["RECOMENDACAO"] == "MOBILIZAR":
