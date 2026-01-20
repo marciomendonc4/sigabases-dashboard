@@ -25,7 +25,7 @@ if modo_demanda == "DEMANDA POR EQUIPES":
     arquivo_dados = "V_TEORIA_DAS_FILAS.xlsx"
     descricao_modo = (
         "🔍 **Demanda por Equipes**  \n"
-        "Análise baseada na carga operacional observada diretamente nas equipes."
+        "Análise na capacidade operacional das equipes."
     )
 else:
     arquivo_dados = "V_TEORIA_DAS_FILAS_REGIAO.xlsx"
@@ -77,15 +77,15 @@ limiar_sobrecarga = st.sidebar.slider(
 descricao_cenario = {
     "A – Conservador": (
         "🟢 **Cenário A – Conservador**  \n"
-        "Capacidade real observada, considerando apenas indisponibilidades registradas."
+        "Capacidade real medida, considerando apenas indisponibilidades lançadas."
     ),
     "B – Moderado": (
         "🟡 **Cenário B – Moderado**  \n"
-        "Inclui margem adicional para atrasos, deslocamentos e variabilidade operacional."
+        "Inclui margem de atrasos, deslocamentos e variabilidade operacional."
     ),
     "C – Agressivo": (
         "🔴 **Cenário C – Agressivo**  \n"
-        "Assume pressão contínua e redução de eficiência por sobrecarga."
+        "Demanda contínua e redução de eficiência operacional."
     )
 }
 
