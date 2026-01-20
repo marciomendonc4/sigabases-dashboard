@@ -8,56 +8,102 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Diagnóstico Operacional por Região")
+st.title("📊 Diagnóstico Operacional")
 st.subheader(
-    "Análise de demanda, capacidade real das equipes e indisponibilidade operacional"
+    "Análise de demanda, capacidade real e indisponibilidade operacional"
 )
 
-# ======================
-# Sidebar — Cenários
-# ======================
+# ======================================================
+# Modo de análise (topo do dashboard)
+# ======================================================
 
-st.sidebar.header("🎛️ Configurações de Análise")
+modo_demanda = st.radio(
+    "Selecione o nível de análise da demanda:",
+    ["DEMANDA DAS EQUIPES", "DEMANDA DAS REGIÕES"],
+    horizontal=True
+)
+
+if modo_demanda == "DEMANDA DAS EQUIPES":
+    arquivo_dados = "V_TEORIA_DAS_FILAS.xlsx"
+    descricao_modo = (
+        "🔍 **Demanda das Equipes**  \n"
+        "Análise baseada na carga operacional observada diretamente nas equipes."
+    )
+else:
+    arquivo_dados = "V_TEORIA_DAS_FILAS_REGIAO.xlsx"
+    descricao_modo = (
+        "🌍 **Demanda das Regiões**  \n"
+        "Análise baseada na demanda agregada regional, com visão estratégica."
+    )
+
+st.info(descricao_modo)
+
+# ======================================================
+# Sidebar — Parâmetros do modelo
+# ======================================================
+
+st.sidebar.header("🎛️ Parâmetros do Modelo")
 
 cenario = st.sidebar.selectbox(
-    "Selecione o cenário:",
+    "Cenário operacional:",
     ["A – Conservador", "B – Moderado", "C – Agressivo"]
 )
 
-if cenario.startswith("A"):
-    fator_capacidade = 1.00
-    descricao_cenario = (
+fator_cenario_padrao = {
+    "A – Conservador": 1.00,
+    "B – Moderado": 0.90,
+    "C – Agressivo": 0.80
+}
+
+fator_capacidade = st.sidebar.slider(
+    "Fator de capacidade do cenário",
+    min_value=0.50,
+    max_value=1.00,
+    value=fator_cenario_padrao[cenario],
+    step=0.05
+)
+
+margem_seguranca = st.sidebar.slider(
+    "Margem de segurança (%)",
+    min_value=0.70,
+    max_value=0.95,
+    value=0.90,
+    step=0.05
+)
+
+limiar_sobrecarga = st.sidebar.slider(
+    "Limiar de dias sobrecarregados para mobilização (%)",
+    min_value=0.10,
+    max_value=0.80,
+    value=0.30,
+    step=0.05
+)
+
+descricao_cenario = {
+    "A – Conservador": (
         "🟢 **Cenário A – Conservador**  \n"
-        "Considera apenas a indisponibilidade registrada (INDISP). "
-        "Representa a capacidade operacional real observada."
-    )
-
-elif cenario.startswith("B"):
-    fator_capacidade = 0.90
-    descricao_cenario = (
+        "Capacidade real observada, considerando apenas indisponibilidades registradas."
+    ),
+    "B – Moderado": (
         "🟡 **Cenário B – Moderado**  \n"
-        "Além da indisponibilidade registrada, aplica uma margem adicional "
-        "para atrasos, deslocamentos e variabilidade operacional."
-    )
-
-else:
-    fator_capacidade = 0.80
-    descricao_cenario = (
+        "Inclui margem adicional para atrasos, deslocamentos e variabilidade operacional."
+    ),
+    "C – Agressivo": (
         "🔴 **Cenário C – Agressivo**  \n"
-        "Assume pressão operacional contínua, com redução de eficiência "
-        "devido a sobrecarga, fadiga e retrabalho."
+        "Assume pressão contínua e redução de eficiência por sobrecarga."
     )
+}
 
 st.markdown("### 🧭 Cenário em Análise")
-st.info(descricao_cenario)
+st.info(descricao_cenario[cenario])
 
-# ======================
-# Carregamento dos dados
-# ======================
+# ======================================================
+# Carga de dados
+# ======================================================
 
 @st.cache_data
-def carregar_dados():
-    df = pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
+def carregar_dados(caminho):
+    df = pd.read_excel(caminho)
 
     def duracao_para_horas(valor):
         if pd.isna(valor):
@@ -73,16 +119,15 @@ def carregar_dados():
         return int(h) + int(m)/60 + int(s)/3600
 
     df["DURACAO_HORAS"] = df["DURACAO"].apply(duracao_para_horas)
-
     return df
 
-df = carregar_dados()
+df = carregar_dados(arquivo_dados)
 
-# ======================
-# Agregações principais
-# ======================
+# ======================================================
+# Construção diária da fila
+# ======================================================
 
-df_regional = (
+df_dia = (
     df.groupby(["REGIAO", "DATA"])
       .agg(
           DEMANDA_DIA=("TIPO_OS", lambda x: (x != "INDISP").sum()),
@@ -93,19 +138,20 @@ df_regional = (
 
 JORNADA_DIARIA_PADRAO = 8.0
 
-df_regional["CAPACIDADE_DIA"] = JORNADA_DIARIA_PADRAO - df_regional["INDISP_HORAS"]
-df_regional["CAPACIDADE_DIA"] = df_regional["CAPACIDADE_DIA"].clip(lower=0)
-df_regional["CAPACIDADE_DIA"] *= fator_capacidade
+df_dia["CAPACIDADE_DIA"] = (
+    JORNADA_DIARIA_PADRAO - df_dia["INDISP_HORAS"]
+).clip(lower=0)
 
-df_regional["SALDO_DIA"] = df_regional["CAPACIDADE_DIA"] - df_regional["DEMANDA_DIA"]
-df_regional["DIA_SOBRECARREGADO"] = df_regional["SALDO_DIA"] < 0
+df_dia["CAPACIDADE_DIA"] *= fator_capacidade
+df_dia["SALDO_DIA"] = df_dia["CAPACIDADE_DIA"] - df_dia["DEMANDA_DIA"]
+df_dia["DIA_SOBRECARREGADO"] = df_dia["SALDO_DIA"] < 0
 
-# ======================
+# ======================================================
 # Diagnóstico regional
-# ======================
+# ======================================================
 
 resultado = (
-    df_regional.groupby("REGIAO")
+    df_dia.groupby("REGIAO")
     .agg(
         MEDIA_DEMANDA=("DEMANDA_DIA", "mean"),
         MEDIA_CAPACIDADE=("CAPACIDADE_DIA", "mean"),
@@ -116,16 +162,20 @@ resultado = (
     .reset_index()
 )
 
-resultado["CAPACIDADE_SEGURA"] = resultado["MEDIA_CAPACIDADE"] * 0.9
+resultado["CAPACIDADE_SEGURA"] = resultado["MEDIA_CAPACIDADE"] * margem_seguranca
+
 resultado["RECOMENDACAO"] = np.where(
-    resultado["SALDO_MEDIO"] < 0, "MOBILIZAR", "NAO_MOBILIZAR"
+    (resultado["SALDO_MEDIO"] < 0) &
+    (resultado["TAXA_SOBRECARGA"] > limiar_sobrecarga),
+    "MOBILIZAR",
+    "NAO_MOBILIZAR"
 )
 
-# ======================
-# Filtro por região
-# ======================
+# ======================================================
+# Filtro regional
+# ======================================================
 
-st.sidebar.header("📍 Filtro Regional")
+st.sidebar.header("📍 Regiões")
 regioes = st.sidebar.multiselect(
     "Selecione as regiões:",
     resultado["REGIAO"].unique(),
@@ -134,9 +184,9 @@ regioes = st.sidebar.multiselect(
 
 resultado = resultado[resultado["REGIAO"].isin(regioes)]
 
-# ======================
-# Indicadores gerais
-# ======================
+# ======================================================
+# Indicadores principais
+# ======================================================
 
 st.markdown("## 📌 Indicadores Consolidados")
 
@@ -149,9 +199,9 @@ c4.metric(
     f"{resultado['TAXA_SOBRECARGA'].mean()*100:.1f}%"
 )
 
-# ======================
+# ======================================================
 # Tabela resumo
-# ======================
+# ======================================================
 
 st.markdown("## 📋 Diagnóstico por Região")
 
@@ -166,13 +216,11 @@ st.dataframe(
     use_container_width=True
 )
 
-# ======================
+# ======================================================
 # Gráficos
-# ======================
+# ======================================================
 
-st.markdown("## ⚖️ Demanda x Capacidade Média")
-st.caption("Comparação entre volume médio diário de OS e capacidade operacional efetiva.")
-
+st.markdown("## ⚖️ Demanda x Capacidade")
 fig1 = px.bar(
     resultado,
     x="REGIAO",
@@ -180,12 +228,9 @@ fig1 = px.bar(
     barmode="group",
     labels={"value": "OS por dia", "variable": "Indicador"}
 )
-fig1.update_layout(title="Demanda Média vs Capacidade Média por Região")
 st.plotly_chart(fig1, use_container_width=True)
 
 st.markdown("## 📉 Saldo Operacional Médio")
-st.caption("Valores negativos indicam déficit estrutural de capacidade.")
-
 fig2 = px.bar(
     resultado,
     x="REGIAO",
@@ -193,26 +238,21 @@ fig2 = px.bar(
     color="SALDO_MEDIO",
     color_continuous_scale="RdYlGn"
 )
-fig2.update_layout(title="Saldo Médio por Região", coloraxis_showscale=False)
+fig2.update_layout(coloraxis_showscale=False)
 st.plotly_chart(fig2, use_container_width=True)
 
-st.markdown("## 🚨 Frequência de Sobrecarga")
-st.caption("Percentual de dias em que a demanda superou a capacidade disponível.")
-
+st.markdown("## 🚨 Taxa de Sobrecarga")
 fig3 = px.bar(
     resultado,
     x="REGIAO",
     y="TAXA_SOBRECARGA"
 )
-fig3.update_layout(
-    title="Taxa de Sobrecarga por Região",
-    yaxis_tickformat=".0%"
-)
+fig3.update_layout(yaxis_tickformat=".0%")
 st.plotly_chart(fig3, use_container_width=True)
 
-# ======================
+# ======================================================
 # Interpretação automática
-# ======================
+# ======================================================
 
 st.markdown("## 🧠 Interpretação Automática")
 
@@ -225,11 +265,11 @@ for _, row in resultado.iterrows():
         )
     else:
         st.success(
-            f"🟢 **{row['REGIAO']}** opera com folga operacional consistente."
+            f"🟢 **{row['REGIAO']}** opera com capacidade suficiente no cenário atual."
         )
 
 st.markdown("---")
 st.caption(
     "Modelo baseado em teoria das filas aplicada à operação real, "
-    "considerando indisponibilidades e cenários de risco operacional."
+    "com suporte a múltiplos níveis de demanda e simulação de cenários."
 )
