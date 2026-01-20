@@ -229,7 +229,7 @@ st.plotly_chart(fig2, use_container_width=True)
 
 st.markdown(
     """
-📌 **Como interpretar o Saldo Operacional Médio**
+📌 **Saldo operacional refere-se ao GAP entre a capacidade operacional e demanda efetiva:**
 
 - **Saldo > 0** → capacidade média supera a demanda (ociosidade operacional)  
 - **Saldo ≈ 0** → sistema rodando no limite da capacidade operacional 
