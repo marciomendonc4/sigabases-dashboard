@@ -4,29 +4,27 @@ import numpy as np
 import plotly.express as px
 
 st.set_page_config(
-    page_title="Diagnóstico Operacional - Teoria das Filas",
+    page_title="Simulação operacional",
     layout="wide"
 )
 
 st.title("📊 Diagnóstico Operacional")
 st.subheader(
-    "Análise de demanda, capacidade real e indisponibilidade operacional"
+    "Premissas: Demanda, capacidade efetiva e indisponibilidade operacional"
 )
 
-# ======================================================
-# Modo de análise (topo do dashboard)
-# ======================================================
+
 
 modo_demanda = st.radio(
-    "Selecione o nível de análise da demanda:",
-    ["DEMANDA DAS EQUIPES", "DEMANDA DAS REGIÕES"],
+    "Selecione o nível de análise:",
+    ["DEMANDA POR EQUIPES", "DEMANDA POR REGIÕES"],
     horizontal=True
 )
 
-if modo_demanda == "DEMANDA DAS EQUIPES":
+if modo_demanda == "DEMANDA POR EQUIPES":
     arquivo_dados = "V_TEORIA_DAS_FILAS.xlsx"
     descricao_modo = (
-        "🔍 **Demanda das Equipes**  \n"
+        "🔍 **Demanda por Equipes**  \n"
         "Análise baseada na carga operacional observada diretamente nas equipes."
     )
 else:
@@ -38,9 +36,6 @@ else:
 
 st.info(descricao_modo)
 
-# ======================================================
-# Sidebar — Parâmetros do modelo
-# ======================================================
 
 st.sidebar.header("🎛️ Parâmetros do Modelo")
 
@@ -97,9 +92,6 @@ descricao_cenario = {
 st.markdown("### 🧭 Cenário em Análise")
 st.info(descricao_cenario[cenario])
 
-# ======================================================
-# Carga de dados
-# ======================================================
 
 @st.cache_data
 def carregar_dados(caminho):
@@ -123,9 +115,7 @@ def carregar_dados(caminho):
 
 df = carregar_dados(arquivo_dados)
 
-# ======================================================
-# Construção diária da fila
-# ======================================================
+
 
 df_dia = (
     df.groupby(["REGIAO", "DATA"])
@@ -135,7 +125,6 @@ df_dia = (
       )
       .reset_index()
 )
-
 JORNADA_DIARIA_PADRAO = 8.0
 
 df_dia["CAPACIDADE_DIA"] = (
@@ -146,9 +135,7 @@ df_dia["CAPACIDADE_DIA"] *= fator_capacidade
 df_dia["SALDO_DIA"] = df_dia["CAPACIDADE_DIA"] - df_dia["DEMANDA_DIA"]
 df_dia["DIA_SOBRECARREGADO"] = df_dia["SALDO_DIA"] < 0
 
-# ======================================================
-# Diagnóstico regional
-# ======================================================
+
 
 resultado = (
     df_dia.groupby("REGIAO")
@@ -171,11 +158,8 @@ resultado["RECOMENDACAO"] = np.where(
     "NAO_MOBILIZAR"
 )
 
-# ======================================================
-# Filtro regional
-# ======================================================
 
-st.sidebar.header("📍 Regiões")
+st.sidebar.header("Regiões")
 regioes = st.sidebar.multiselect(
     "Selecione as regiões:",
     resultado["REGIAO"].unique(),
@@ -184,9 +168,7 @@ regioes = st.sidebar.multiselect(
 
 resultado = resultado[resultado["REGIAO"].isin(regioes)]
 
-# ======================================================
-# Indicadores principais
-# ======================================================
+#princip indicadores
 
 st.markdown("## 📌 Indicadores Consolidados")
 
@@ -199,9 +181,7 @@ c4.metric(
     f"{resultado['TAXA_SOBRECARGA'].mean()*100:.1f}%"
 )
 
-# ======================================================
-# Tabela resumo
-# ======================================================
+#resumo
 
 st.markdown("## 📋 Diagnóstico por Região")
 
@@ -216,9 +196,7 @@ st.dataframe(
     use_container_width=True
 )
 
-# ======================================================
-# Gráficos
-# ======================================================
+
 
 st.markdown("## ⚖️ Demanda x Capacidade")
 fig1 = px.bar(
@@ -241,6 +219,20 @@ fig2 = px.bar(
 fig2.update_layout(coloraxis_showscale=False)
 st.plotly_chart(fig2, use_container_width=True)
 
+st.markdown(
+    """
+📌 **Como interpretar o Saldo Operacional Médio**
+
+- **Saldo > 0** → capacidade média supera a demanda (folga operacional)  
+- **Saldo ≈ 0** → sistema no limite (sensível a picos e imprevistos)  
+- **Saldo < 0** → demanda média maior que a capacidade (déficit estrutural)
+
+*Esse indicador representa o “fôlego” diário da operação.*
+""",
+    unsafe_allow_html=False
+)
+
+
 st.markdown("## 🚨 Taxa de Sobrecarga")
 fig3 = px.bar(
     resultado,
@@ -250,9 +242,21 @@ fig3 = px.bar(
 fig3.update_layout(yaxis_tickformat=".0%")
 st.plotly_chart(fig3, use_container_width=True)
 
-# ======================================================
-# Interpretação automática
-# ======================================================
+st.markdown(
+    """
+📌 **Como interpretar:**
+
+- **0–10%** → operação muito confortável  
+- **10–30%** → atenção  
+- **30–50%** → risco estrutural  
+- **>50%** → sistema subdimensionado  
+
+*Ela é o termômetro de stress da operação.*
+""",
+    unsafe_allow_html=False
+)
+
+
 
 st.markdown("## 🧠 Interpretação Automática")
 
