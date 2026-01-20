@@ -212,24 +212,31 @@ fig1.update_traces(
 )
 st.plotly_chart(fig1, use_container_width=True)
 
+
 st.markdown("## 📉 Saldo Operacional Médio")
+
 fig2 = px.bar(
     resultado,
     x="REGIAO",
     y="SALDO_MEDIO",
     color="SALDO_MEDIO",
-    color_continuous_scale="RdYlGn"
+    color_continuous_scale="RdYlGn",
+    text="SALDO_MEDIO"
 )
+
 fig2.update_layout(coloraxis_showscale=False)
+
 fig2.update_traces(
     texttemplate="%{text:.2f}",
     textposition="outside"
 )
+
 st.plotly_chart(fig2, use_container_width=True)
+
 
 st.markdown(
     """
-📌 **Saldo operacional refere-se ao GAP entre a capacidade operacional e demanda efetiva:**
+📌 **Saldo operacional refere-se ao GAP entre a capacidade operacional e demanda efetiva.**
 
 - **Saldo > 0** → capacidade média supera a demanda (ociosidade operacional)  
 - **Saldo ≈ 0** → sistema rodando no limite da capacidade operacional 
