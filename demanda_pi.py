@@ -1,168 +1,112 @@
-import streamlit as st
 import pandas as pd
+import numpy as np
+import streamlit as st
 import plotly.express as px
 
-st.set_page_config(page_title="Operational & Financial Stress Analysis", layout="wide")
+st.set_page_config(page_title="Operational & Economic Analysis", layout="wide")
 
-st.title("📊 Análise Operacional e Financeira – Teoria das Filas")
-st.markdown(
-    """
-Este painel avalia **capacidade operacional**, **sobrecarga** e **viabilidade econômica**
-com base em tempo real de execução + deslocamento e valores contratuais.
-"""
-)
+JORNADA_DIARIA_PADRAO = 8.0
+CUSTO_HORA_EQUIPE = 350.0
 
-# Parameters
-JORNADA_HORAS = 8
-CUSTO_HORA_EQUIPE = 350
-CUSTO_DIA_EQUIPE = JORNADA_HORAS * CUSTO_HORA_EQUIPE
-
-# Load data
 @st.cache_data
 def load_data():
-    return pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
+    return pd.read_excel("TEORIA_DAS_FILAS.xlsx")
+
+def hhmm_to_hours(col):
+    return (
+        pd.to_timedelta(col, errors="coerce")
+        .dt.total_seconds()
+        .div(3600)
+        .fillna(0)
+    )
 
 df = load_data()
 
-# Basic preparation
-df["DATA"] = pd.to_datetime(df["DATA"])
+df["DURACAO_HORAS"] = hhmm_to_hours(df["DURACAO"])
+df["DESLOCAMENTO_HORAS"] = hhmm_to_hours(df["DESLOCAMENTO"])
+df["DEMANDA_HORAS"] = df["DURACAO_HORAS"] + df["DESLOCAMENTO_HORAS"]
 
-df["TEMPO_TOTAL_OS"] = df["DURACAO"] + df["DESLOCAMENTO"]
+df = df[df["DEMANDA_HORAS"] > 0]
 
-# Daily aggregation per equipe
-base = (
-    df
-    .groupby(["REGIAO", "EQUIPE", "DATA"])
-    .agg(
-        DEMANDA_HORAS=("TEMPO_TOTAL_OS", "sum"),
-        RECEITA_DIA=("PRECO_A_COBRAR", "sum")
-    )
-    .reset_index()
+df["RECEITA_HORA"] = df["PRECO_A_COBRAR"] / df["DEMANDA_HORAS"]
+
+base_dia = (
+    df.groupby(["REGIAO", "DATA", "EQUIPE"])
+      .agg(
+          DEMANDA_HORAS=("DEMANDA_HORAS", "sum"),
+          RECEITA_TOTAL=("PRECO_A_COBRAR", "sum"),
+          RECEITA_HORA_MEDIA=("RECEITA_HORA", "mean")
+      )
+      .reset_index()
 )
 
-base["CAPACIDADE_HORAS"] = JORNADA_HORAS
-base["SOBRECARGA_HORAS"] = base["DEMANDA_HORAS"] - base["CAPACIDADE_HORAS"]
-base["DIA_SOBRECARREGADO"] = base["SOBRECARGA_HORAS"] > 0
+base_dia["CAPACIDADE_HORAS"] = JORNADA_DIARIA_PADRAO
+base_dia["SOBRECARGA_HORAS"] = base_dia["DEMANDA_HORAS"] - base_dia["CAPACIDADE_HORAS"]
+base_dia["SOBRECARGA_FLAG"] = base_dia["SOBRECARGA_HORAS"] > 0
 
-# Financial layer
-base["SALDO_ECONOMICO_DIA"] = base["RECEITA_DIA"] - CUSTO_DIA_EQUIPE
-base["DIA_ECONOMICAMENTE_VIAVEL"] = base["SALDO_ECONOMICO_DIA"] > 0
-
-# Regional aggregation
 resultado = (
-    base
-    .groupby("REGIAO")
+    base_dia.groupby("REGIAO")
     .agg(
         MEDIA_DEMANDA_HORAS=("DEMANDA_HORAS", "mean"),
         MEDIA_CAPACIDADE_HORAS=("CAPACIDADE_HORAS", "mean"),
-        TAXA_SOBRECARGA=("DIA_SOBRECARREGADO", "mean"),
-        SALDO_OPERACIONAL_MEDIO=("SALDO_ECONOMICO_DIA", "mean"),
-        TAXA_DIAS_VIAVEIS=("DIA_ECONOMICAMENTE_VIAVEL", "mean")
+        TAXA_SOBRECARGA=("SOBRECARGA_FLAG", "mean"),
+        SALDO_OPERACIONAL_MEDIO=("SOBRECARGA_HORAS", "mean"),
+        RECEITA_HORA_MEDIA=("RECEITA_HORA_MEDIA", "mean")
     )
     .reset_index()
 )
 
-# --------------------
-# DASHBOARD
-# --------------------
+resultado["CUSTO_HORA"] = CUSTO_HORA_EQUIPE
+resultado["MARGEM_HORA"] = resultado["RECEITA_HORA_MEDIA"] - resultado["CUSTO_HORA"]
+resultado["VIAVEL_ECONOMICAMENTE"] = resultado["MARGEM_HORA"] > 0
 
-st.markdown("## ⏱️ Demanda Média vs Capacidade Média (horas/dia)")
+st.title("📊 Operational & Economic Stress Analysis")
+st.caption("Time-based demand, contractual capacity, economic realism")
 
-fig1 = px.bar(
-    resultado,
-    x="REGIAO",
-    y=["MEDIA_DEMANDA_HORAS", "MEDIA_CAPACIDADE_HORAS"],
-    barmode="group",
-    labels={
-        "value": "Horas por dia",
-        "variable": "Indicador"
-    }
-)
-st.plotly_chart(fig1, use_container_width=True)
+col1, col2 = st.columns(2)
 
-st.markdown(
-    """
-**Como interpretar**  
-- Se a **demanda média** se aproxima ou ultrapassa a capacidade, o sistema está sob pressão.
-- A capacidade é fixa (8h); a demanda reflete execução real + deslocamento.
-"""
-)
+with col1:
+    fig1 = px.bar(
+        resultado,
+        x="REGIAO",
+        y="TAXA_SOBRECARGA",
+        text="TAXA_SOBRECARGA",
+        title="Taxa de Sobrecarga"
+    )
+    fig1.update_layout(yaxis_tickformat=".0%")
+    fig1.update_traces(texttemplate="%{text:.1%}", textposition="outside")
+    st.plotly_chart(fig1, use_container_width=True)
 
-# --------------------
-
-st.markdown("## 🚨 Taxa de Sobrecarga")
-
-fig2 = px.bar(
-    resultado,
-    x="REGIAO",
-    y="TAXA_SOBRECARGA",
-    labels={"TAXA_SOBRECARGA": "Percentual de dias sobrecarregados"}
-)
-fig2.update_layout(yaxis_tickformat=".0%")
-fig2.update_traces(texttemplate="%{y:.0%}", textposition="outside")
-
-st.plotly_chart(fig2, use_container_width=True)
-
-st.markdown(
-    """
-📌 **Como interpretar:**
-
-- **0–10%** → operação muito confortável  
-- **10–30%** → atenção  
-- **30–50%** → risco estrutural  
-- **>50%** → sistema subdimensionado  
-
-👉 Este é o **termômetro de stress operacional**.
-"""
-)
-
-# --------------------
-
-st.markdown("## 💰 Saldo Operacional Médio (R$/dia)")
+with col2:
+    fig2 = px.bar(
+        resultado,
+        x="REGIAO",
+        y=["MEDIA_DEMANDA_HORAS", "MEDIA_CAPACIDADE_HORAS"],
+        barmode="group",
+        title="Demanda vs Capacidade (horas/dia)"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
 
 fig3 = px.bar(
     resultado,
     x="REGIAO",
     y="SALDO_OPERACIONAL_MEDIO",
     color="SALDO_OPERACIONAL_MEDIO",
-    color_continuous_scale="RdYlGn",
-    labels={"SALDO_OPERACIONAL_MEDIO": "R$ por dia"}
+    title="Saldo Operacional Médio (horas)",
+    color_continuous_scale="RdYlGn"
 )
 fig3.update_layout(coloraxis_showscale=False)
-fig3.update_traces(texttemplate="R$ %{y:,.0f}", textposition="outside")
-
 st.plotly_chart(fig3, use_container_width=True)
-
-st.markdown(
-    """
-**O que significa o saldo operacional?**
-
-- Representa a diferença entre **receita diária executada** e o **custo cheio de uma equipe (R$ 2.800/dia)**.
-- Valor positivo indica que **a operação paga uma equipe adicional**.
-- Valor negativo indica que **mobilização ampliaria prejuízo**, mesmo havendo demanda.
-"""
-)
-
-# --------------------
-
-st.markdown("## 📈 Taxa de Dias Economicamente Viáveis")
 
 fig4 = px.bar(
     resultado,
     x="REGIAO",
-    y="TAXA_DIAS_VIAVEIS",
-    labels={"TAXA_DIAS_VIAVEIS": "Percentual de dias viáveis"}
+    y="MARGEM_HORA",
+    color="VIAVEL_ECONOMICAMENTE",
+    title="Margem Econômica por Hora",
+    text="MARGEM_HORA"
 )
-fig4.update_layout(yaxis_tickformat=".0%")
-fig4.update_traces(texttemplate="%{y:.0%}", textposition="outside")
-
+fig4.update_traces(texttemplate="R$ %{text:,.2f}", textposition="outside")
 st.plotly_chart(fig4, use_container_width=True)
 
-st.markdown(
-    """
-**Leitura final**  
-- Alta sobrecarga + baixa viabilidade → gargalo operacional sem densidade econômica  
-- Alta sobrecarga + alta viabilidade → forte candidato à mobilização  
-- Baixa sobrecarga → ajuste fino, não expansão
-"""
-)
+st.dataframe(resultado, use_container_width=True)
