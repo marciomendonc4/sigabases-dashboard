@@ -10,7 +10,7 @@ CUSTO_HORA_EQUIPE = 350.0
 
 @st.cache_data
 def load_data():
-    return pd.read_excel("TEORIA_DAS_FILAS.xlsx")
+    return pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
 
 def hhmm_to_hours(col):
     return (
