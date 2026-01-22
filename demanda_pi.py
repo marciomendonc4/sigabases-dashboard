@@ -20,7 +20,7 @@ CUSTO_DIA_EQUIPE = JORNADA_HORAS * CUSTO_HORA_EQUIPE
 # Load data
 @st.cache_data
 def load_data():
-    return pd.read_excel("TEORIA_DAS_FILAS.xlsx")
+    return pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
 
 df = load_data()
 
