@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import altair as alt
 
 # Função para converter strings de tempo em minutos
 def tempo_para_minutos(t):
@@ -176,7 +177,22 @@ else:
     st.subheader('Composição de Atividades (Geral)')
     if 'Geral' in metricas['REGIAO'].values:
         participacao_ct_geral = metricas[metricas['REGIAO'] == 'Geral']['participacao_ct'].values[0]
-        st.pie_chart(pd.Series({'CT': participacao_ct_geral, 'Outras': 1 - participacao_ct_geral}))
+        dados_pizza = pd.DataFrame({
+            'Tipo': ['CT', 'Outras'],
+            'Participação': [participacao_ct_geral, 1 - participacao_ct_geral]
+        })
+        
+        chart = alt.Chart(dados_pizza).mark_arc().encode(
+            theta=alt.Theta(field="Participação", type="quantitative"),
+            color=alt.Color(field="Tipo", type="nominal"),
+            tooltip=['Tipo', 'Participação']
+        ).properties(
+            width=300,
+            height=300,
+            title='Participação de Atividades CT vs Outras'
+        )
+        
+        st.altair_chart(chart, use_container_width=True)
 
     st.subheader('Simulação: Adição de Equipes Extras')
     resultados_simulacao = simular_adicao_equipes(metricas, equipes_extras, taxa_captura, custo_por_hora)
