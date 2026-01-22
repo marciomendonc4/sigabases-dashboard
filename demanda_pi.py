@@ -186,4 +186,4 @@ else:
         st.subheader('Projeção Anual de Lucro Adicional (250 dias úteis)')
         st.bar_chart(resultados_simulacao.set_index('REGIAO')['lucro_adicional_dia'] * 250)
     else:
-        st.info("Simulação não gerada (métricas vazias).")
+        st.info("Simulação não gerada (métricas vazias)")
