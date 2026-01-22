@@ -22,6 +22,9 @@ def tempo_para_minutos(t):
 def carregar_dados(caminho_arquivo='V_TEORIA_DAS_FILAS.xlsx'):
     df = pd.read_excel(caminho_arquivo, sheet_name='TEORIA_DAS_FILAS')
     
+    # Converter 'DATA' para numérico antes da conversão para datetime
+    df['DATA'] = pd.to_numeric(df['DATA'], errors='coerce')
+    
     # Limpeza e criação de colunas
     df['DURACAO_MIN'] = df['DURACAO'].apply(tempo_para_minutos)
     df['DESLOCAMENTO_MIN'] = df['DESLOCAMENTO'].apply(tempo_para_minutos)
