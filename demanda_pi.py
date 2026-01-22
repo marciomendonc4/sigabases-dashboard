@@ -33,12 +33,32 @@ def carregar_dados(caminho_arquivo='V_TEORIA_DAS_FILAS.xlsx'):
     
     df['PRECO_A_COBRAR'] = df['PRECO_A_COBRAR'].astype(str).str.replace(',', '.').astype(float)
     
-    # Parse de datas e horários
-    df['DATA'] = pd.to_datetime(df['DATA'], errors='coerce', origin='1899-12-30', unit='D')
-    df['ATRIBUICAO_DT'] = pd.to_datetime(df['ATRIBUICAO'], errors='coerce')
-    df['INICIO_DT'] = df.apply(lambda row: row['DATA'].replace(hour=int(row['HORA_INICIO']), minute=0) if pd.notna(row['DATA']) else None, axis=1)
-    df['TEMPO_ESPERA_MIN'] = (df['INICIO_DT'] - df['ATRIBUICAO_DT']).dt.total_seconds() / 60 if 'INICIO_DT' in df else 0
+    df = pd.read_excel(caminho_arquivo, sheet_name='TEORIA_DAS_FILAS')
     
+    df['DATA'] = pd.to_numeric(df['DATA'], errors='coerce')
+    df['DATA'] = pd.to_datetime(df['DATA'], errors='coerce', origin='1899-12-30', unit='D')
+    
+    df['ATRIBUICAO_DT'] = pd.to_datetime(df['ATRIBUICAO'], errors='coerce')
+    
+    # Cria INICIO_DT com cuidado
+    def criar_inicio_dt(row):
+        if pd.isna(row['DATA']) or pd.isna(row['HORA_INICIO']):
+            return pd.NaT
+        try:
+            hora = int(row['HORA_INICIO'])
+            return row['DATA'].replace(hour=hora, minute=0, second=0, microsecond=0)
+        except:
+            return pd.NaT
+    
+    df['INICIO_DT'] = df.apply(criar_inicio_dt, axis=1)
+    
+    # Cálculo de espera com tratamento de NaT
+    mask = df['INICIO_DT'].notna() & df['ATRIBUICAO_DT'].notna()
+    df['TEMPO_ESPERA_MIN'] = 0.0
+    df.loc[mask, 'TEMPO_ESPERA_MIN'] = (
+        (df.loc[mask, 'INICIO_DT'] - df.loc[mask, 'ATRIBUICAO_DT'])
+        .dt.total_seconds() / 60
+    )
     # Filtrar atividades produtivas
     df['PRODUTIVA'] = (df['STATUS'] == 'P') & (df['TIPO_OS'] != 'INDISP')
     
