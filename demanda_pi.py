@@ -1,112 +1,172 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
-import streamlit as st
 import plotly.express as px
 
-st.set_page_config(page_title="Operational & Economic Analysis", layout="wide")
+st.set_page_config(
+    page_title="Simulação operacional",
+    layout="wide"
+)
 
-JORNADA_DIARIA_PADRAO = 8.0
+st.title("Diagnóstico Operacional e Financeiro")
+st.subheader(
+    "Premissas: demanda em tempo real, capacidade efetiva e viabilidade econômica"
+)
+
+modo_demanda = st.radio(
+    "Selecione o nível de análise:",
+    ["DEMANDA POR EQUIPES", "DEMANDA POR REGIÕES"],
+    horizontal=True
+)
+
+if modo_demanda == "DEMANDA POR EQUIPES":
+    arquivo_dados = "V_TEORIA_DAS_FILAS.xlsx"
+    descricao_modo = "🔍 **Demanda por Equipes**"
+else:
+    arquivo_dados = "V_TEORIA_DAS_FILAS.xlsx"
+    descricao_modo = "🌍 **Demanda por Regiões**"
+
+st.info(descricao_modo)
+
+st.sidebar.header("🎛️ Parâmetros do Modelo")
+
+cenario = st.sidebar.selectbox(
+    "Cenário operacional:",
+    ["A – Conservador", "B – Moderado", "C – Agressivo"]
+)
+
+fator_cenario = {
+    "A – Conservador": 1.00,
+    "B – Moderado": 0.90,
+    "C – Agressivo": 0.80
+}[cenario]
+
+margem_seguranca = st.sidebar.slider(
+    "Margem de segurança (%)",
+    0.70, 0.95, 0.90, 0.05
+)
+
+limiar_sobrecarga = st.sidebar.slider(
+    "Limiar de sobrecarga (%)",
+    0.10, 0.80, 0.30, 0.05
+)
+
 CUSTO_HORA_EQUIPE = 350.0
+JORNADA_DIARIA_PADRAO = 8.0
 
 @st.cache_data
-def load_data():
-    return pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
+def carregar_dados(caminho):
+    df = pd.read_excel(caminho)
 
-def hhmm_to_hours(col):
-    return (
-        pd.to_timedelta(col, errors="coerce")
-        .dt.total_seconds()
-        .div(3600)
-        .fillna(0)
-    )
+    def hhmm_para_horas(valor):
+        if pd.isna(valor):
+            return 0.0
+        partes = str(valor).split(":")
+        partes = [int(p) for p in partes]
+        if len(partes) == 2:
+            h, m = partes
+            s = 0
+        else:
+            h, m, s = partes
+        return h + m/60 + s/3600
 
-df = load_data()
+    df["DURACAO_HORAS"] = df["DURACAO"].apply(hhmm_para_horas)
+    df["DESLOCAMENTO_HORAS"] = df["DESLOCAMENTO"].apply(hhmm_para_horas)
 
-df["DURACAO_HORAS"] = hhmm_to_hours(df["DURACAO"])
-df["DESLOCAMENTO_HORAS"] = hhmm_to_hours(df["DESLOCAMENTO"])
-df["DEMANDA_HORAS"] = df["DURACAO_HORAS"] + df["DESLOCAMENTO_HORAS"]
+    return df
 
-df = df[df["DEMANDA_HORAS"] > 0]
+df = carregar_dados(arquivo_dados)
 
-df["RECEITA_HORA"] = df["PRECO_A_COBRAR"] / df["DEMANDA_HORAS"]
+# ======================
+# OPERATIONAL LAYER
+# ======================
 
-base_dia = (
-    df.groupby(["REGIAO", "DATA", "EQUIPE"])
+df_dia = (
+    df.groupby(["REGIAO", "DATA"])
       .agg(
-          DEMANDA_HORAS=("DEMANDA_HORAS", "sum"),
-          RECEITA_TOTAL=("PRECO_A_COBRAR", "sum"),
-          RECEITA_HORA_MEDIA=("RECEITA_HORA", "mean")
+          DEMANDA_HORAS_DIA=(
+              "DURACAO_HORAS",
+              lambda x: (
+                  x[df.loc[x.index, "TIPO_OS"] != "INDISP"].sum() +
+                  df.loc[x.index, "DESLOCAMENTO_HORAS"][df.loc[x.index, "TIPO_OS"] != "INDISP"].sum()
+              )
+          ),
+          INDISP_HORAS=("DURACAO_HORAS",
+                        lambda x: x[df.loc[x.index, "TIPO_OS"] == "INDISP"].sum())
       )
       .reset_index()
 )
 
-base_dia["CAPACIDADE_HORAS"] = JORNADA_DIARIA_PADRAO
-base_dia["SOBRECARGA_HORAS"] = base_dia["DEMANDA_HORAS"] - base_dia["CAPACIDADE_HORAS"]
-base_dia["SOBRECARGA_FLAG"] = base_dia["SOBRECARGA_HORAS"] > 0
+df_dia["CAPACIDADE_DIA_HORAS"] = (
+    JORNADA_DIARIA_PADRAO - df_dia["INDISP_HORAS"]
+).clip(lower=0) * fator_cenario
 
-resultado = (
-    base_dia.groupby("REGIAO")
+df_dia["SALDO_HORAS"] = df_dia["CAPACIDADE_DIA_HORAS"] - df_dia["DEMANDA_HORAS_DIA"]
+df_dia["DIA_SOBRECARREGADO"] = df_dia["SALDO_HORAS"] < 0
+
+# ======================
+# FINANCIAL LAYER
+# ======================
+
+df_exec = df[df["TIPO_OS"] != "INDISP"].copy()
+df_exec["TEMPO_TOTAL_HORAS"] = df_exec["DURACAO_HORAS"] + df_exec["DESLOCAMENTO_HORAS"]
+
+financeiro = (
+    df_exec.groupby("REGIAO")
     .agg(
-        MEDIA_DEMANDA_HORAS=("DEMANDA_HORAS", "mean"),
-        MEDIA_CAPACIDADE_HORAS=("CAPACIDADE_HORAS", "mean"),
-        TAXA_SOBRECARGA=("SOBRECARGA_FLAG", "mean"),
-        SALDO_OPERACIONAL_MEDIO=("SOBRECARGA_HORAS", "mean"),
-        RECEITA_HORA_MEDIA=("RECEITA_HORA_MEDIA", "mean")
+        RECEITA_TOTAL=("PRECO_A_COBRAR", "sum"),
+        HORAS_EXECUTADAS=("TEMPO_TOTAL_HORAS", "sum")
     )
     .reset_index()
 )
 
-resultado["CUSTO_HORA"] = CUSTO_HORA_EQUIPE
-resultado["MARGEM_HORA"] = resultado["RECEITA_HORA_MEDIA"] - resultado["CUSTO_HORA"]
-resultado["VIAVEL_ECONOMICAMENTE"] = resultado["MARGEM_HORA"] > 0
-
-st.title("📊 Operational & Economic Stress Analysis")
-st.caption("Time-based demand, contractual capacity, economic realism")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    fig1 = px.bar(
-        resultado,
-        x="REGIAO",
-        y="TAXA_SOBRECARGA",
-        text="TAXA_SOBRECARGA",
-        title="Taxa de Sobrecarga"
-    )
-    fig1.update_layout(yaxis_tickformat=".0%")
-    fig1.update_traces(texttemplate="%{text:.1%}", textposition="outside")
-    st.plotly_chart(fig1, use_container_width=True)
-
-with col2:
-    fig2 = px.bar(
-        resultado,
-        x="REGIAO",
-        y=["MEDIA_DEMANDA_HORAS", "MEDIA_CAPACIDADE_HORAS"],
-        barmode="group",
-        title="Demanda vs Capacidade (horas/dia)"
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-fig3 = px.bar(
-    resultado,
-    x="REGIAO",
-    y="SALDO_OPERACIONAL_MEDIO",
-    color="SALDO_OPERACIONAL_MEDIO",
-    title="Saldo Operacional Médio (horas)",
-    color_continuous_scale="RdYlGn"
+financeiro["RECEITA_HORA_REAL"] = (
+    financeiro["RECEITA_TOTAL"] / financeiro["HORAS_EXECUTADAS"]
 )
-fig3.update_layout(coloraxis_showscale=False)
-st.plotly_chart(fig3, use_container_width=True)
 
-fig4 = px.bar(
-    resultado,
-    x="REGIAO",
-    y="MARGEM_HORA",
-    color="VIAVEL_ECONOMICAMENTE",
-    title="Margem Econômica por Hora",
-    text="MARGEM_HORA"
+financeiro["MARGEM_HORA"] = (
+    financeiro["RECEITA_HORA_REAL"] - CUSTO_HORA_EQUIPE
 )
-fig4.update_traces(texttemplate="R$ %{text:,.2f}", textposition="outside")
-st.plotly_chart(fig4, use_container_width=True)
 
-st.dataframe(resultado, use_container_width=True)
+# ======================
+# CONSOLIDATION
+# ======================
+
+resultado = (
+    df_dia.groupby("REGIAO")
+    .agg(
+        MEDIA_DEMANDA_HORAS=("DEMANDA_HORAS_DIA", "mean"),
+        MEDIA_CAPACIDADE_HORAS=("CAPACIDADE_DIA_HORAS", "mean"),
+        TAXA_SOBRECARGA=("DIA_SOBRECARREGADO", "mean"),
+        SALDO_MEDIO_HORAS=("SALDO_HORAS", "mean")
+    )
+    .reset_index()
+)
+
+resultado = resultado.merge(financeiro, on="REGIAO", how="left")
+
+resultado["RECOMENDACAO"] = np.where(
+    (resultado["SALDO_MEDIO_HORAS"] < 0) &
+    (resultado["TAXA_SOBRECARGA"] > limiar_sobrecarga) &
+    (resultado["MARGEM_HORA"] > 0),
+    "MOBILIZAR",
+    "NAO_MOBILIZAR"
+)
+
+# ======================
+# OUTPUT
+# ======================
+
+st.markdown("## Diagnóstico Integrado")
+
+st.dataframe(
+    resultado.style.format({
+        "MEDIA_DEMANDA_HORAS": "{:.2f}",
+        "MEDIA_CAPACIDADE_HORAS": "{:.2f}",
+        "SALDO_MEDIO_HORAS": "{:.2f}",
+        "TAXA_SOBRECARGA": "{:.1%}",
+        "RECEITA_HORA_REAL": "R$ {:.2f}",
+        "MARGEM_HORA": "R$ {:.2f}"
+    }),
+    use_container_width=True
+)
