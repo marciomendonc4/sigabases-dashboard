@@ -3,17 +3,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# --------------------------------------------------
-# Page config
-# --------------------------------------------------
 st.set_page_config(page_title="Operational Time Analysis", layout="wide")
 
 st.title("Operational Time & Demand Analysis")
 st.caption("Exploratory analysis based on execution and travel times")
 
-# --------------------------------------------------
-# Data loading
-# --------------------------------------------------
 @st.cache_data
 def load_data():
     df = pd.read_excel("V_TEORIA_DAS_FILAS.xlsx")
@@ -34,25 +28,21 @@ def load_data():
 
     return df
 
-
 df = load_data()
 
-# --------------------------------------------------
-# Filters
-# --------------------------------------------------
 st.sidebar.header("Filters")
 
 grupo_os = st.sidebar.multiselect(
     "Grupo OS",
-    options=sorted(df["GRUPO_OS"].unique()),
-    default=sorted(df["GRUPO_OS"].unique())
+    options=sorted(df["GRUPO_OS"].dropna().unique()),
+    default=sorted(df["GRUPO_OS"].dropna().unique())
 )
 
 df_grupo = df[df["GRUPO_OS"].isin(grupo_os)]
 
 tipo_os = st.sidebar.selectbox(
     "Tipo OS",
-    options=["TODOS"] + sorted(df_grupo["TIPO_OS"].unique())
+    options=["TODOS"] + sorted(df_grupo["TIPO_OS"].dropna().unique())
 )
 
 if tipo_os != "TODOS":
@@ -60,21 +50,34 @@ if tipo_os != "TODOS":
 else:
     df_f = df_grupo.copy()
 
-# --------------------------------------------------
-# BOX PLOTS
-# --------------------------------------------------
 st.subheader("Time Distributions by Region")
 
 def boxplot_por_regiao(df, coluna, titulo):
     dados = []
     labels = []
+    medianas = []
 
     for regiao, g in df.groupby("REGIAO"):
-        dados.append(g[coluna].dropna().values)
-        labels.append(regiao)
+        valores = g[coluna].dropna().values
+        if len(valores) > 0:
+            dados.append(valores)
+            labels.append(regiao)
+            medianas.append(np.median(valores))
 
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.boxplot(dados, labels=labels, showfliers=True)
+    fig, ax = plt.subplots(figsize=(16, 4))
+    bp = ax.boxplot(dados, labels=labels, showfliers=True)
+
+    for i, med in enumerate(medianas):
+        ax.text(
+            i + 1,
+            med,
+            f"{med:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold"
+        )
+
     ax.set_title(titulo)
     ax.set_xlabel("Região")
     ax.set_ylabel("Horas")
@@ -82,21 +85,10 @@ def boxplot_por_regiao(df, coluna, titulo):
 
     st.pyplot(fig)
 
+boxplot_por_regiao(df_f, "DESLOCAMENTO_HORAS", "Deslocamento por Região (horas)")
+boxplot_por_regiao(df_f, "DURACAO_HORAS", "Duração por Região (horas)")
+boxplot_por_regiao(df_f, "TMA_HORAS", "TMA – Duração + Deslocamento por Região (horas)")
 
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    boxplot_por_regiao(df_f, "DESLOCAMENTO_HORAS", "Deslocamento por Região")
-
-with c2:
-    boxplot_por_regiao(df_f, "DURACAO_HORAS", "Duração por Região")
-
-with c3:
-    boxplot_por_regiao(df_f, "TMA_HORAS", "TMA (Duração + Deslocamento) por Região")
-
-# --------------------------------------------------
-# LINE CHART (MONTHLY)
-# --------------------------------------------------
 st.subheader("Monthly Time Evolution")
 
 metric = st.radio(
@@ -111,7 +103,7 @@ serie = (
     .reset_index()
 )
 
-fig, ax = plt.subplots(figsize=(10, 4))
+fig, ax = plt.subplots(figsize=(16, 4))
 ax.plot(serie["ANO_MES"], serie[metric], marker="o")
 ax.set_title(f"Monthly Average – {metric}")
 ax.set_xlabel("Month / Year")
@@ -121,9 +113,6 @@ ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
-# --------------------------------------------------
-# DAILY DEMAND
-# --------------------------------------------------
 st.subheader("Daily Demand by Region")
 
 demanda = (
@@ -132,7 +121,7 @@ demanda = (
     .reset_index(name="QTD_OS")
 )
 
-fig, ax = plt.subplots(figsize=(10, 4))
+fig, ax = plt.subplots(figsize=(16, 4))
 
 for regiao, g in demanda.groupby("REGIAO"):
     ax.plot(g["DATA"], g["QTD_OS"], label=regiao)
@@ -145,12 +134,9 @@ ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
-# --------------------------------------------------
-# PIE CHARTS
-# --------------------------------------------------
 st.subheader("OS Distribution by Region")
 
-regioes = df_f["REGIAO"].unique()
+regioes = sorted(df_f["REGIAO"].dropna().unique())
 cols = st.columns(len(regioes))
 
 for col, regiao in zip(cols, regioes):
