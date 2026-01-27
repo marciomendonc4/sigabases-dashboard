@@ -157,3 +157,32 @@ for col, regiao in zip(cols, regioes):
         ax.set_title(regiao)
 
         st.pyplot(fig)
+
+st.subheader("OS Distribution by Region")
+
+regioes = sorted(df_f["REGIAO"].dropna().unique())
+
+pies_por_linha = 3
+linhas = range(0, len(regioes), pies_por_linha)
+
+for i in linhas:
+    cols = st.columns(pies_por_linha)
+
+    for col, regiao in zip(cols, regioes[i:i + pies_por_linha]):
+        with col:
+            dist = (
+                df_f[df_f["REGIAO"] == regiao]
+                .groupby("GRUPO_OS")
+                .size()
+            )
+
+            fig, ax = plt.subplots(figsize=(4, 4))
+            ax.pie(
+                dist.values,
+                labels=dist.index,
+                autopct="%1.1f%%",
+                startangle=90
+            )
+            ax.set_title(regiao)
+
+            st.pyplot(fig)
