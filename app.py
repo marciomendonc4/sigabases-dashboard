@@ -91,7 +91,9 @@ boxplot_por_regional(
     "Horas"
 )
 
+
 st.markdown("---")
+st.subheader("Evolução mensal dos tempos médios")
 
 df_filtrado['mes'] = (
     pd.to_datetime(df_filtrado['data'])
@@ -99,30 +101,51 @@ df_filtrado['mes'] = (
     .astype(str)
 )
 
-df_evolucao_mensal = (
-    df_filtrado
-    .groupby(['mes', 'regional_nome'], as_index=False)['media']
-    .mean()
-    .sort_values('mes')
-)
-
-figura_linha, eixo_linha = plt.subplots(figsize=(12, 5))
-
-for regional, grupo in df_evolucao_mensal.groupby('regional_nome'):
-    eixo_linha.plot(
-        grupo['mes'],
-        grupo['media'],
-        marker='o',
-        label=regional
+def plot_linha(df, coluna, titulo, ylabel):
+    df_evolucao = (
+        df
+        .groupby(['mes', 'regional_nome'], as_index=False)[coluna]
+        .mean()
+        .sort_values('mes')
     )
 
-eixo_linha.set_title(
-    f"Evolução mensal do TMA – {tipo_os_selecionado}"
-)
-eixo_linha.set_xlabel("Mês")
-eixo_linha.set_ylabel("Horas")
-eixo_linha.legend(title="Regional", bbox_to_anchor=(1.05, 1), loc='upper left')
-eixo_linha.grid(True, linestyle="--", alpha=0.4)
-plt.xticks(rotation=45)
+    fig, ax = plt.subplots(figsize=(12, 5))
 
-st.pyplot(figura_linha)
+    for regional, grupo in df_evolucao.groupby('regional_nome'):
+        ax.plot(
+            grupo['mes'],
+            grupo[coluna],
+            marker='o',
+            label=regional
+        )
+
+    ax.set_title(titulo)
+    ax.set_xlabel("Mês")
+    ax.set_ylabel(ylabel)
+    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.legend(title="Regional", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xticks(rotation=45)
+
+    st.pyplot(fig)
+
+
+plot_linha(
+    df_filtrado,
+    "media",
+    f"Evolução mensal do TMA – {tipo_os_selecionado}",
+    "TMA médio (h)"
+)
+
+plot_linha(
+    df_filtrado,
+    "media_duracao",
+    f"Evolução mensal da duração – {tipo_os_selecionado}",
+    "Duração média (h)"
+)
+
+plot_linha(
+    df_filtrado,
+    "media_deslocamento",
+    f"Evolução mensal do deslocamento – {tipo_os_selecionado}",
+    "Deslocamento médio (h)"
+)
