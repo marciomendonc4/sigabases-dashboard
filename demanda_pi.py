@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Operational Time Analysis", layout="wide")
+st.set_page_config(page_title="DPL SUL PI", layout="wide")
 
-st.title("Operational Time & Demand Analysis")
-st.caption("Exploratory analysis based on execution and travel times")
+st.title("Tempos Operacionais")
+
 
 @st.cache_data
 def load_data():
@@ -30,7 +30,7 @@ def load_data():
 
 df = load_data()
 
-st.sidebar.header("Filters")
+
 
 grupo_os = st.sidebar.multiselect(
     "Grupo OS",
@@ -50,7 +50,7 @@ if tipo_os != "TODOS":
 else:
     df_f = df_grupo.copy()
 
-st.subheader("Time Distributions by Region")
+st.subheader("Distribuição do Tempo Operacional")
 
 def boxplot_por_regiao(df, coluna, titulo):
     dados = []
@@ -89,10 +89,10 @@ boxplot_por_regiao(df_f, "DESLOCAMENTO_HORAS", "Deslocamento por Região (horas)
 boxplot_por_regiao(df_f, "DURACAO_HORAS", "Duração por Região (horas)")
 boxplot_por_regiao(df_f, "TMA_HORAS", "TMA – Duração + Deslocamento por Região (horas)")
 
-st.subheader("Monthly Time Evolution")
+st.subheader("Distribuição do Tempo Operacional")
 
 metric = st.radio(
-    "Metric",
+    "Métrica",
     ["DESLOCAMENTO_HORAS", "DURACAO_HORAS", "TMA_HORAS"],
     horizontal=True
 )
@@ -105,15 +105,15 @@ serie = (
 
 fig, ax = plt.subplots(figsize=(16, 4))
 ax.plot(serie["ANO_MES"], serie[metric], marker="o")
-ax.set_title(f"Monthly Average – {metric}")
-ax.set_xlabel("Month / Year")
-ax.set_ylabel("Hours")
+ax.set_title(f"Média Mensal – {metric}")
+ax.set_xlabel("Mês/Ano")
+ax.set_ylabel("Tempo")
 ax.tick_params(axis="x", rotation=45)
 ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
-st.subheader("Daily Demand by Region")
+st.subheader("Demanda Diária por Região")
 
 demanda = (
     df_f.groupby(["REGIAO", "DATA"])
@@ -126,15 +126,15 @@ fig, ax = plt.subplots(figsize=(16, 4))
 for regiao, g in demanda.groupby("REGIAO"):
     ax.plot(g["DATA"], g["QTD_OS"], label=regiao)
 
-ax.set_title("Daily OS Demand")
-ax.set_xlabel("Date")
-ax.set_ylabel("OS per day")
+ax.set_title("Demanda diária")
+ax.set_xlabel("Data")
+ax.set_ylabel("OS por dia")
 ax.legend()
 ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
-st.subheader("OS Distribution by Region")
+st.subheader("Distribuição do Balde por Região")
 
 regioes = sorted(df_f["REGIAO"].dropna().unique())
 cols = st.columns(len(regioes))
