@@ -64,7 +64,7 @@ def boxplot_por_regiao(df, coluna, titulo):
             labels.append(regiao)
             medianas.append(np.median(valores))
 
-    fig, ax = plt.subplots(figsize=(16, 4))
+    fig, ax = plt.subplots(figsize=(12, 5))
     bp = ax.boxplot(dados, labels=labels, showfliers=True)
 
     for i, med in enumerate(medianas):
