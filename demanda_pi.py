@@ -134,31 +134,9 @@ ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
+
+
 st.subheader("Distribuição do Balde por Região")
-
-regioes = sorted(df_f["REGIAO"].dropna().unique())
-cols = st.columns(len(regioes))
-
-for col, regiao in zip(cols, regioes):
-    with col:
-        dist = (
-            df_f[df_f["REGIAO"] == regiao]
-            .groupby("GRUPO_OS")
-            .size()
-        )
-
-        fig, ax = plt.subplots()
-        ax.pie(
-            dist.values,
-            labels=dist.index,
-            autopct="%1.1f%%",
-            startangle=90
-        )
-        ax.set_title(regiao)
-
-        st.pyplot(fig)
-
-st.subheader("OS Distribution by Region")
 
 regioes = sorted(df_f["REGIAO"].dropna().unique())
 
