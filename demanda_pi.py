@@ -50,6 +50,15 @@ if tipo_os != "TODOS":
 else:
     df_f = df_grupo.copy()
 
+
+regioes = st.sidebar.multiselect(
+    "Região",
+    options=sorted(df["REGIAO"].dropna().unique()),
+    default=sorted(df["REGIAO"].dropna().unique())
+)
+
+df_f = df[df["REGIAO"].isin(regioes)]
+
 st.subheader("Distribuição do Tempo Operacional")
 
 def boxplot_por_regiao(df, coluna, titulo):
