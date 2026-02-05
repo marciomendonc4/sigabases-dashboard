@@ -46,7 +46,7 @@ with st.sidebar:
 
     # Grupo OS
     df_f = df_f[df_f['tipo_os'].isin(sel_tipo)] if sel_tipo else df_f.copy()
-    grupos = sorted(df_f['grupo_os'].unique()) if not df_f.empty else []
+    grupos = sorted(df_f['grupo_os'].dropna().astype(str).unique()) if not df_f.empty else []
     sel_grupo = st.multiselect("Grupo OS", options=grupos, default=grupos)
 
 
@@ -63,7 +63,7 @@ if sel_grupo:    filtered = filtered[filtered['grupo_os'].isin(sel_grupo)]
 if filtered.empty:
     st.warning("Nenhum dado corresponde à combinação de filtros selecionada.")
     st.stop()
-    
+
 
 if filtered.empty:
     st.warning("Nenhum dado após os filtros.")
