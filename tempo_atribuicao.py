@@ -16,33 +16,42 @@ df = load_data()
 st.title("Distribuição de Atribuições – Análise de Gargalos")
 
 # ── Cascading Filters ──────────────────────────────────────────────
+# ── Cascading Filters (safe version) ──────────────────────────────────────────────
 with st.sidebar:
     st.header("Filtros")
 
+    # Estado
     estados = sorted(df['estado'].unique())
     sel_estado = st.multiselect("Estado", options=estados, default=estados)
 
-    df_f = df if not sel_estado else df[df['estado'].isin(sel_estado)]
-    regionais = sorted(df_f['regional'].unique())
+    # Regional
+    df_f = df[df['estado'].isin(sel_estado)] if sel_estado else df.copy()
+    regionais = sorted(df_f['regional'].unique()) if not df_f.empty else []
     sel_regional = st.multiselect("Regional", options=regionais, default=regionais)
 
-    df_f = df_f if not sel_regional else df_f[df_f['regional'].isin(sel_regional)]
-    bases = sorted(df_f['base'].unique())
+    # Base
+    df_f = df_f[df_f['regional'].isin(sel_regional)] if sel_regional else df_f.copy()
+    bases = sorted(df_f['base'].unique()) if not df_f.empty else []
     sel_base = st.multiselect("Base", options=bases, default=bases)
 
-    df_f = df_f if not sel_base else df_f[df_f['base'].isin(sel_base)]
-    siglas = sorted(df_f['sigla'].unique())
+    # Sigla
+    df_f = df_f[df_f['base'].isin(sel_base)] if sel_base else df_f.copy()
+    siglas = sorted(df_f['sigla'].unique()) if not df_f.empty else []
     sel_sigla = st.multiselect("Sigla", options=siglas, default=siglas)
 
-    df_f = df_f if not sel_sigla else df_f[df_f['sigla'].isin(sel_sigla)]
-    tipos = sorted(df_f['tipo_os'].unique())
+    # Tipo OS
+    df_f = df_f[df_f['sigla'].isin(sel_sigla)] if sel_sigla else df_f.copy()
+    tipos = sorted(df_f['tipo_os'].unique()) if not df_f.empty else []
     sel_tipo = st.multiselect("Tipo OS", options=tipos, default=tipos)
 
-    df_f = df_f if not sel_tipo else df_f[df_f['tipo_os'].isin(sel_tipo)]
-    grupos = sorted(df_f['grupo_os'].unique())
+    # Grupo OS
+    df_f = df_f[df_f['tipo_os'].isin(sel_tipo)] if sel_tipo else df_f.copy()
+    grupos = sorted(df_f['grupo_os'].unique()) if not df_f.empty else []
     sel_grupo = st.multiselect("Grupo OS", options=grupos, default=grupos)
 
+
 # Apply filters
+# Apply all filters
 filtered = df
 if sel_estado:   filtered = filtered[filtered['estado'].isin(sel_estado)]
 if sel_regional: filtered = filtered[filtered['regional'].isin(sel_regional)]
@@ -50,6 +59,11 @@ if sel_base:     filtered = filtered[filtered['base'].isin(sel_base)]
 if sel_sigla:    filtered = filtered[filtered['sigla'].isin(sel_sigla)]
 if sel_tipo:     filtered = filtered[filtered['tipo_os'].isin(sel_tipo)]
 if sel_grupo:    filtered = filtered[filtered['grupo_os'].isin(sel_grupo)]
+
+if filtered.empty:
+    st.warning("Nenhum dado corresponde à combinação de filtros selecionada.")
+    st.stop()
+    
 
 if filtered.empty:
     st.warning("Nenhum dado após os filtros.")
