@@ -26,9 +26,7 @@ def load_data():
 
 df = load_data()
 
-# =========================
-# METRICS
-# =========================
+
 df["dias_abertura_atribuicao"] = (
     df["DATA_ATRIBUICAO_OS"] - df["DATA_ABERTURA_OS"]
 ).dt.total_seconds() / 86400
@@ -37,9 +35,7 @@ df["horas_ate_prazo"] = (
     df["DATA_LIMITE_OS"] - df["DATA_ATRIBUICAO_OS"]
 ).dt.total_seconds() / 3600
 
-# =========================
-# RISK CLASSIFICATION
-# =========================
+
 def classificar_risco(row):
     if pd.isna(row["DATA_ATRIBUICAO_OS"]) or pd.isna(row["DATA_LIMITE_OS"]):
         return "SEM ATRIBUIÇÃO"
@@ -65,10 +61,7 @@ def classificar_risco(row):
 
 df["nivel_risco"] = df.apply(classificar_risco, axis=1)
 
-# =========================
-# SIDEBAR — CASCADING FILTERS
-# estado → regional → base → sigla → grupo_os → tipo_os
-# =========================
+
 st.sidebar.header("Filtros")
 
 estado = st.sidebar.multiselect(
@@ -113,9 +106,7 @@ tipo_os = st.sidebar.multiselect(
 )
 df_f = df_f[df_f["tipo_os"].isin(tipo_os)]
 
-# =========================
-# KPIs
-# =========================
+"""
 c1, c2, c3, c4 = st.columns(4)
 
 c1.metric("OS analisadas", f"{len(df_f):,}".replace(",", "."))
@@ -131,10 +122,8 @@ c4.metric(
     "% <=1h",
     round((df_f["nivel_risco"] == "<=1h").mean() * 100, 2)
 )
+"""
 
-# =========================
-# HISTOGRAM — DIAS ATÉ ATRIBUIÇÃO (NO NULLS)
-# =========================
 df_bins = df_f[df_f["dias_abertura_atribuicao"].notna()].copy()
 
 bins = [-np.inf, 0, 1, 2, 3, 5, 7, 14, np.inf]
@@ -168,9 +157,7 @@ hist_chart = (
 st.subheader("Distribuição — Tempo até atribuição")
 st.altair_chart(hist_chart, use_container_width=True)
 
-# =========================
-# RISK DISTRIBUTION (NO NULLS)
-# =========================
+
 df_risk = df_f[
     (df_f["nivel_risco"].notna())
     & (df_f["nivel_risco"] != "SEM ATRIBUIÇÃO")
@@ -202,9 +189,6 @@ risk_chart = (
 st.subheader("Distribuição — Janela até o prazo")
 st.altair_chart(risk_chart, use_container_width=True)
 
-# =========================
-# SUMMARY TABLE
-# =========================
 st.subheader("Tabela resumida")
 
 table = (
