@@ -116,7 +116,6 @@ df_f = df_f[df_f["tipo_os"].isin(tipo_os)]
 # =========================
 # KPIs
 # =========================
-
 c1, c2, c3, c4 = st.columns(4)
 """
 c1.metric("OS analisadas", f"{len(df_f):,}".replace(",", "."))
@@ -134,7 +133,6 @@ c4.metric(
 )
 
 """
-a=1
 
 # =========================
 # HISTOGRAM — DIAS ATÉ ATRIBUIÇÃO (NO NULLS + LABELS)
