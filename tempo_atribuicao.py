@@ -134,6 +134,7 @@ c4.metric(
 )
 
 """
+a=1
 
 # =========================
 # HISTOGRAM — DIAS ATÉ ATRIBUIÇÃO (NO NULLS + LABELS)
