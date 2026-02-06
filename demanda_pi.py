@@ -84,7 +84,13 @@ def boxplot_por_regiao(df, coluna, titulo):
             ha="center",
             va="bottom",
             fontsize=9,
-            fontweight="bold"
+            fontweight="bold",
+            bbox=dict(
+                facecolor="white",
+                edgecolor="black",
+                boxstyle="round,pad=0.25",
+                alpha=0.85
+            )
         )
 
     ax.set_title(titulo)
