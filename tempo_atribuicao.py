@@ -185,17 +185,25 @@ hist_bar = (
 
 hist_text = (
     alt.Chart(df_hist)
-    .mark_text(dy=-5)
+    .mark_text(
+        dy=-8,
+        fontSize=11,
+        color="white",
+        align="center",
+        baseline="bottom"
+    )
     .encode(
-        x="bin_dias_atribuicao:N",
+        x=alt.X("bin_dias_atribuicao:N", sort=labels),
         y="qtd:Q",
         text="label:N"
     )
 )
 
 st.subheader("Distribuição — Tempo até atribuição")
-st.altair_chart(hist_bar + hist_text, use_container_width=True)
-
+st.altair_chart(
+    (hist_bar + hist_text).configure_view(clip=False),
+    use_container_width=True
+)
 # =========================
 # RISK DISTRIBUTION (NO NULLS + LABELS)
 # =========================
@@ -241,7 +249,13 @@ risk_bar = (
 
 risk_text = (
     alt.Chart(df_risk_plot)
-    .mark_text(dy=-5)
+    .mark_text(
+        dy=-10,
+        fontSize=11,
+        color="white",
+        align="center",
+        baseline="bottom"
+    )
     .encode(
         x=alt.X("nivel_risco:N", sort=risk_order),
         y="qtd:Q",
@@ -250,8 +264,10 @@ risk_text = (
 )
 
 st.subheader("Distribuição — Janela até o prazo")
-st.altair_chart(risk_bar + risk_text, use_container_width=True)
-
+st.altair_chart(
+    (risk_bar + risk_text).configure_view(clip=False),
+    use_container_width=True
+)
 # =========================
 # SUMMARY TABLE
 # =========================
