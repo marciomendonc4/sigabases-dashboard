@@ -26,7 +26,9 @@ def load_data():
 
 df = load_data()
 
-
+# =========================
+# METRICS
+# =========================
 df["dias_abertura_atribuicao"] = (
     df["DATA_ATRIBUICAO_OS"] - df["DATA_ABERTURA_OS"]
 ).dt.total_seconds() / 86400
@@ -35,7 +37,9 @@ df["horas_ate_prazo"] = (
     df["DATA_LIMITE_OS"] - df["DATA_ATRIBUICAO_OS"]
 ).dt.total_seconds() / 3600
 
-
+# =========================
+# RISK CLASSIFICATION
+# =========================
 def classificar_risco(row):
     if pd.isna(row["DATA_ATRIBUICAO_OS"]) or pd.isna(row["DATA_LIMITE_OS"]):
         return "SEM ATRIBUIÇÃO"
@@ -61,7 +65,10 @@ def classificar_risco(row):
 
 df["nivel_risco"] = df.apply(classificar_risco, axis=1)
 
-
+# =========================
+# SIDEBAR — CASCADING FILTERS
+# estado → regional → base → sigla → grupo_os → tipo_os
+# =========================
 st.sidebar.header("Filtros")
 
 estado = st.sidebar.multiselect(
@@ -106,9 +113,12 @@ tipo_os = st.sidebar.multiselect(
 )
 df_f = df_f[df_f["tipo_os"].isin(tipo_os)]
 
-"""
-c1, c2, c3, c4 = st.columns(4)
+# =========================
+# KPIs
+# =========================
 
+c1, c2, c3, c4 = st.columns(4)
+"""
 c1.metric("OS analisadas", f"{len(df_f):,}".replace(",", "."))
 c2.metric(
     "Média dias criação → atribuição",
@@ -122,8 +132,12 @@ c4.metric(
     "% <=1h",
     round((df_f["nivel_risco"] == "<=1h").mean() * 100, 2)
 )
+
 """
 
+# =========================
+# HISTOGRAM — DIAS ATÉ ATRIBUIÇÃO (NO NULLS + LABELS)
+# =========================
 df_bins = df_f[df_f["dias_abertura_atribuicao"].notna()].copy()
 
 bins = [-np.inf, 0, 1, 2, 3, 5, 7, 14, np.inf]
@@ -144,24 +158,68 @@ df_bins["bin_dias_atribuicao"] = pd.cut(
     labels=labels
 )
 
-hist_chart = (
-    alt.Chart(df_bins)
+df_hist = (
+    df_bins
+    .groupby("bin_dias_atribuicao", dropna=True)
+    .size()
+    .reset_index(name="qtd")
+)
+
+total_hist = df_hist["qtd"].sum()
+df_hist["pct"] = df_hist["qtd"] / total_hist * 100
+df_hist["label"] = (
+    df_hist["qtd"].astype(int).astype(str)
+    + " | "
+    + df_hist["pct"].round(1).astype(str)
+    + "%"
+)
+
+hist_bar = (
+    alt.Chart(df_hist)
     .mark_bar()
     .encode(
         x=alt.X("bin_dias_atribuicao:N", sort=labels, title="Dias até atribuição"),
-        y=alt.Y("count()", title="Quantidade de OS"),
-        tooltip=["count()"]
+        y=alt.Y("qtd:Q", title="Quantidade de OS"),
+        tooltip=["qtd", alt.Tooltip("pct:Q", format=".1f")]
+    )
+)
+
+hist_text = (
+    alt.Chart(df_hist)
+    .mark_text(dy=-5)
+    .encode(
+        x="bin_dias_atribuicao:N",
+        y="qtd:Q",
+        text="label:N"
     )
 )
 
 st.subheader("Distribuição — Tempo até atribuição")
-st.altair_chart(hist_chart, use_container_width=True)
+st.altair_chart(hist_bar + hist_text, use_container_width=True)
 
-
+# =========================
+# RISK DISTRIBUTION (NO NULLS + LABELS)
+# =========================
 df_risk = df_f[
     (df_f["nivel_risco"].notna())
     & (df_f["nivel_risco"] != "SEM ATRIBUIÇÃO")
 ].copy()
+
+df_risk_plot = (
+    df_risk
+    .groupby("nivel_risco", dropna=True)
+    .size()
+    .reset_index(name="qtd")
+)
+
+total_risk = df_risk_plot["qtd"].sum()
+df_risk_plot["pct"] = df_risk_plot["qtd"] / total_risk * 100
+df_risk_plot["label"] = (
+    df_risk_plot["qtd"].astype(int).astype(str)
+    + " | "
+    + df_risk_plot["pct"].round(1).astype(str)
+    + "%"
+)
 
 risk_order = [
     "<=1h",
@@ -172,23 +230,32 @@ risk_order = [
     "ATRIB. APÓS 18h (MESMO DIA)"
 ]
 
-risk_chart = (
-    alt.Chart(df_risk)
+risk_bar = (
+    alt.Chart(df_risk_plot)
     .mark_bar()
     .encode(
-        x=alt.X(
-            "nivel_risco:N",
-            sort=risk_order,
-            title="Janela até o prazo"
-        ),
-        y=alt.Y("count()", title="Quantidade de OS"),
-        tooltip=["count()"]
+        x=alt.X("nivel_risco:N", sort=risk_order, title="Janela até o prazo"),
+        y=alt.Y("qtd:Q", title="Quantidade de OS"),
+        tooltip=["qtd", alt.Tooltip("pct:Q", format=".1f")]
+    )
+)
+
+risk_text = (
+    alt.Chart(df_risk_plot)
+    .mark_text(dy=-5)
+    .encode(
+        x=alt.X("nivel_risco:N", sort=risk_order),
+        y="qtd:Q",
+        text="label:N"
     )
 )
 
 st.subheader("Distribuição — Janela até o prazo")
-st.altair_chart(risk_chart, use_container_width=True)
+st.altair_chart(risk_bar + risk_text, use_container_width=True)
 
+# =========================
+# SUMMARY TABLE
+# =========================
 st.subheader("Tabela resumida")
 
 table = (
