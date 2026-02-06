@@ -5,29 +5,30 @@ import altair as alt
 
 st.set_page_config(layout="wide")
 
-
+# =========================
+# LOAD DATA
+# =========================
 @st.cache_data
 def load_data():
     df = pd.read_parquet("tempo_atribuicao.parquet")
 
-    datetime_cols = [
+    for col in [
         "DATA_ABERTURA_OS",
         "DATA_ATRIBUICAO_OS",
         "DATA_LIMITE_OS",
-    ]
-
-    for col in datetime_cols:
+    ]:
         df[col] = pd.to_datetime(
             df[col],
             errors="coerce",
             dayfirst=True
         )
-
     return df
 
 df = load_data()
 
-
+# =========================
+# METRICS
+# =========================
 df["dias_abertura_atribuicao"] = (
     df["DATA_ATRIBUICAO_OS"] - df["DATA_ABERTURA_OS"]
 ).dt.total_seconds() / 86400
@@ -36,7 +37,9 @@ df["horas_ate_prazo"] = (
     df["DATA_LIMITE_OS"] - df["DATA_ATRIBUICAO_OS"]
 ).dt.total_seconds() / 3600
 
-
+# =========================
+# RISK CLASSIFICATION
+# =========================
 def classificar_risco(row):
     if pd.isna(row["DATA_ATRIBUICAO_OS"]) or pd.isna(row["DATA_LIMITE_OS"]):
         return "SEM ATRIBUIÇÃO"
@@ -45,96 +48,94 @@ def classificar_risco(row):
         row["DATA_ATRIBUICAO_OS"].date() == row["DATA_LIMITE_OS"].date()
         and row["DATA_ATRIBUICAO_OS"].hour >= 18
     ):
-        return "FORA DO TURNO"
+        return "ATRIB. APÓS 18h (MESMO DIA)"
 
     h = row["horas_ate_prazo"]
 
     if h > 24:
-        return "OK"
+        return ">24h"
     elif h <= 1:
-        return "EMERGÊNCIA"
+        return "<=1h"
     elif h < 6:
-        return "VERMELHO"
+        return "1–6h"
     elif h < 12:
-        return "AMARELO"
+        return "6–12h"
     else:
-        return "OK"
+        return "12–24h"
 
 df["nivel_risco"] = df.apply(classificar_risco, axis=1)
 
-
+# =========================
+# SIDEBAR — CASCADING FILTERS
+# estado → regional → base → sigla → grupo_os → tipo_os
+# =========================
 st.sidebar.header("Filtros")
 
 estado = st.sidebar.multiselect(
     "Estado",
-    options=sorted(df["estado"].dropna().unique()),
+    sorted(df["estado"].dropna().unique()),
     default=sorted(df["estado"].dropna().unique())
 )
-
 df_f = df[df["estado"].isin(estado)]
 
 regional = st.sidebar.multiselect(
     "Regional",
-    options=sorted(df_f["regional"].dropna().unique()),
+    sorted(df_f["regional"].dropna().unique()),
     default=sorted(df_f["regional"].dropna().unique())
 )
-
 df_f = df_f[df_f["regional"].isin(regional)]
 
 base = st.sidebar.multiselect(
     "Base",
-    options=sorted(df_f["base"].dropna().unique()),
+    sorted(df_f["base"].dropna().unique()),
     default=sorted(df_f["base"].dropna().unique())
 )
-
 df_f = df_f[df_f["base"].isin(base)]
 
 sigla = st.sidebar.multiselect(
     "Sigla",
-    options=sorted(df_f["sigla"].dropna().unique()),
+    sorted(df_f["sigla"].dropna().unique()),
     default=sorted(df_f["sigla"].dropna().unique())
 )
-
 df_f = df_f[df_f["sigla"].isin(sigla)]
 
 grupo_os = st.sidebar.multiselect(
     "Grupo OS",
-    options=sorted(df_f["grupo_os"].dropna().unique()),
+    sorted(df_f["grupo_os"].dropna().unique()),
     default=sorted(df_f["grupo_os"].dropna().unique())
 )
-
 df_f = df_f[df_f["grupo_os"].isin(grupo_os)]
 
 tipo_os = st.sidebar.multiselect(
     "Tipo OS",
-    options=sorted(df_f["tipo_os"].dropna().unique()),
+    sorted(df_f["tipo_os"].dropna().unique()),
     default=sorted(df_f["tipo_os"].dropna().unique())
 )
-
 df_f = df_f[df_f["tipo_os"].isin(tipo_os)]
 
-col1, col2, col3, col4 = st.columns(4)
+# =========================
+# KPIs
+# =========================
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric(
-    "OS analisadas",
-    f"{len(df_f):,}".replace(",", ".")
-)
-
-col2.metric(
+c1.metric("OS analisadas", f"{len(df_f):,}".replace(",", "."))
+c2.metric(
     "Média dias criação → atribuição",
     round(df_f["dias_abertura_atribuicao"].mean(), 2)
 )
-
-col3.metric(
-    "% FORA DO TURNO",
-    round((df_f["nivel_risco"] == "FORA DO TURNO").mean() * 100, 2)
+c3.metric(
+    "% Atrib. após 18h",
+    round((df_f["nivel_risco"] == "ATRIB. APÓS 18h (MESMO DIA)").mean() * 100, 2)
+)
+c4.metric(
+    "% <=1h",
+    round((df_f["nivel_risco"] == "<=1h").mean() * 100, 2)
 )
 
-col4.metric(
-    "% EMERGÊNCIA",
-    round((df_f["nivel_risco"] == "EMERGÊNCIA").mean() * 100, 2)
-)
-
+# =========================
+# HISTOGRAM — DIAS ATÉ ATRIBUIÇÃO (NO NULLS)
+# =========================
+df_bins = df_f[df_f["dias_abertura_atribuicao"].notna()].copy()
 
 bins = [-np.inf, 0, 1, 2, 3, 5, 7, 14, np.inf]
 labels = [
@@ -148,14 +149,14 @@ labels = [
     ">14 dias"
 ]
 
-df_f["bin_dias_atribuicao"] = pd.cut(
-    df_f["dias_abertura_atribuicao"],
+df_bins["bin_dias_atribuicao"] = pd.cut(
+    df_bins["dias_abertura_atribuicao"],
     bins=bins,
     labels=labels
 )
 
-bin_chart = (
-    alt.Chart(df_f)
+hist_chart = (
+    alt.Chart(df_bins)
     .mark_bar()
     .encode(
         x=alt.X("bin_dias_atribuicao:N", sort=labels, title="Dias até atribuição"),
@@ -165,28 +166,53 @@ bin_chart = (
 )
 
 st.subheader("Distribuição — Tempo até atribuição")
-st.altair_chart(bin_chart, use_container_width=True)
+st.altair_chart(hist_chart, use_container_width=True)
 
+# =========================
+# RISK DISTRIBUTION (NO NULLS)
+# =========================
+df_risk = df_f[
+    (df_f["nivel_risco"].notna())
+    & (df_f["nivel_risco"] != "SEM ATRIBUIÇÃO")
+].copy()
+
+risk_order = [
+    "<=1h",
+    "1–6h",
+    "6–12h",
+    "12–24h",
+    ">24h",
+    "ATRIB. APÓS 18h (MESMO DIA)"
+]
 
 risk_chart = (
-    alt.Chart(df_f)
+    alt.Chart(df_risk)
     .mark_bar()
     .encode(
-        x=alt.X("nivel_risco:N", title="Nível de risco"),
-        y=alt.Y("count()", title="Quantidade"),
+        x=alt.X(
+            "nivel_risco:N",
+            sort=risk_order,
+            title="Janela até o prazo"
+        ),
+        y=alt.Y("count()", title="Quantidade de OS"),
         tooltip=["count()"]
     )
 )
 
-st.subheader("Distribuição por nível de risco")
+st.subheader("Distribuição — Janela até o prazo")
 st.altair_chart(risk_chart, use_container_width=True)
 
-
+# =========================
+# SUMMARY TABLE
+# =========================
 st.subheader("Tabela resumida")
 
 table = (
     df_f
-    .groupby(["estado", "regional", "base", "grupo_os", "tipo_os", "nivel_risco"])
+    .groupby(
+        ["estado", "regional", "base", "grupo_os", "tipo_os", "nivel_risco"],
+        dropna=True
+    )
     .agg(
         os_qtd=("nivel_risco", "count"),
         media_dias_atribuicao=("dias_abertura_atribuicao", "mean"),
