@@ -57,8 +57,8 @@ regioes = st.sidebar.multiselect(
     default=sorted(df["REGIAO"].dropna().unique())
 )
 
-df_f = df[df["REGIAO"].isin(regioes)]
-
+#df_f = df[df["REGIAO"].isin(regioes)]
+df_f = df_f[df_f["REGIAO"].isin(regioes)]
 st.subheader("Distribuição do Tempo Operacional")
 
 def boxplot_por_regiao(df, coluna, titulo):
