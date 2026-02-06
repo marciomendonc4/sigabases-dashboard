@@ -1,164 +1,201 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
+import altair as alt
+
+st.set_page_config(layout="wide")
+
 
 @st.cache_data
 def load_data():
     df = pd.read_parquet("tempo_atribuicao.parquet")
-    df['DATA_ATRIBUICAO'] = pd.to_datetime(df['DATA_ATRIBUICAO'], dayfirst=True)
-    df['hour'] = df['DATA_ATRIBUICAO'].dt.hour
-    df['date'] = df['DATA_ATRIBUICAO'].dt.date
+
+    datetime_cols = [
+        "DATA_ABERTURA_OS",
+        "DATA_ATRIBUICAO_OS",
+        "DATA_LIMITE_OS",
+    ]
+
+    for col in datetime_cols:
+        df[col] = pd.to_datetime(
+            df[col],
+            errors="coerce",
+            dayfirst=True
+        )
+
     return df
 
 df = load_data()
 
-st.title("Distribuição de Atribuições – Análise de Gargalos")
 
-# ── Cascading Filters ──────────────────────────────────────────────
-# ── Cascading Filters (safe version) ──────────────────────────────────────────────
-with st.sidebar:
-    st.header("Filtros")
+df["dias_abertura_atribuicao"] = (
+    df["DATA_ATRIBUICAO_OS"] - df["DATA_ABERTURA_OS"]
+).dt.total_seconds() / 86400
 
-    # Estado
-    estados = sorted(df['estado'].unique())
-    sel_estado = st.multiselect("Estado", options=estados, default=estados)
-
-    # Regional
-    df_f = df[df['estado'].isin(sel_estado)] if sel_estado else df.copy()
-    regionais = sorted(df_f['regional'].unique()) if not df_f.empty else []
-    sel_regional = st.multiselect("Regional", options=regionais, default=regionais)
-
-    # Base
-    df_f = df_f[df_f['regional'].isin(sel_regional)] if sel_regional else df_f.copy()
-    bases = sorted(df_f['base'].unique()) if not df_f.empty else []
-    sel_base = st.multiselect("Base", options=bases, default=bases)
-
-    # Sigla
-    df_f = df_f[df_f['base'].isin(sel_base)] if sel_base else df_f.copy()
-    siglas = sorted(df_f['sigla'].unique()) if not df_f.empty else []
-    sel_sigla = st.multiselect("Sigla", options=siglas, default=siglas)
-
-    # Tipo OS
-    df_f = df_f[df_f['sigla'].isin(sel_sigla)] if sel_sigla else df_f.copy()
-    tipos = sorted(df_f['tipo_os'].unique()) if not df_f.empty else []
-    sel_tipo = st.multiselect("Tipo OS", options=tipos, default=tipos)
-
-    # Grupo OS
-    df_f = df_f[df_f['tipo_os'].isin(sel_tipo)] if sel_tipo else df_f.copy()
-    grupos = sorted(df_f['grupo_os'].dropna().astype(str).unique()) if not df_f.empty else []
-    sel_grupo = st.multiselect("Grupo OS", options=grupos, default=grupos)
+df["horas_ate_prazo"] = (
+    df["DATA_LIMITE_OS"] - df["DATA_ATRIBUICAO_OS"]
+).dt.total_seconds() / 3600
 
 
-# Apply filters
-# Apply all filters
-filtered = df
-if sel_estado:   filtered = filtered[filtered['estado'].isin(sel_estado)]
-if sel_regional: filtered = filtered[filtered['regional'].isin(sel_regional)]
-if sel_base:     filtered = filtered[filtered['base'].isin(sel_base)]
-if sel_sigla:    filtered = filtered[filtered['sigla'].isin(sel_sigla)]
-if sel_tipo:     filtered = filtered[filtered['tipo_os'].isin(sel_tipo)]
-if sel_grupo:    filtered = filtered[filtered['grupo_os'].isin(sel_grupo)]
+def classificar_risco(row):
+    if pd.isna(row["DATA_ATRIBUICAO_OS"]) or pd.isna(row["DATA_LIMITE_OS"]):
+        return "SEM ATRIBUIÇÃO"
 
-if filtered.empty:
-    st.warning("Nenhum dado corresponde à combinação de filtros selecionada.")
-    st.stop()
+    if (
+        row["DATA_ATRIBUICAO_OS"].date() == row["DATA_LIMITE_OS"].date()
+        and row["DATA_ATRIBUICAO_OS"].hour >= 18
+    ):
+        return "FORA DO TURNO"
+
+    h = row["horas_ate_prazo"]
+
+    if h > 24:
+        return "OK"
+    elif h <= 1:
+        return "EMERGÊNCIA"
+    elif h < 6:
+        return "VERMELHO"
+    elif h < 12:
+        return "AMARELO"
+    else:
+        return "OK"
+
+df["nivel_risco"] = df.apply(classificar_risco, axis=1)
 
 
-if filtered.empty:
-    st.warning("Nenhum dado após os filtros.")
-    st.stop()
+st.sidebar.header("Filtros")
 
-# ── Histogram: Hour of day ─────────────────────────────────────────
-st.subheader("Distribuição por Hora do Dia")
-
-fig_hist, ax_hist = plt.subplots(figsize=(9, 5))
-counts, bins, _ = ax_hist.hist(
-    filtered['hour'], 
-    bins=np.arange(0, 25, 1), 
-    edgecolor='black', 
-    alpha=0.75
+estado = st.sidebar.multiselect(
+    "Estado",
+    options=sorted(df["estado"].dropna().unique()),
+    default=sorted(df["estado"].dropna().unique())
 )
-ax_hist.set_xlabel("Hora do dia (0–23)")
-ax_hist.set_ylabel("Quantidade de atribuições")
-ax_hist.set_title("Volume de atribuições por hora")
-ax_hist.set_xticks(range(0, 24, 2))
-ax_hist.grid(True, axis='y', alpha=0.3, linestyle='--')
 
-for i in range(len(counts)):
-    if counts[i] > 0:
-        ax_hist.text(bins[i] + 0.4, counts[i] + max(counts)*0.01, 
-                     str(int(counts[i])), ha='center', fontsize=9)
+df_f = df[df["estado"].isin(estado)]
 
-st.pyplot(fig_hist)
+regional = st.sidebar.multiselect(
+    "Regional",
+    options=sorted(df_f["regional"].dropna().unique()),
+    default=sorted(df_f["regional"].dropna().unique())
+)
 
-# ── Bottlenecks: Tipo OS ───────────────────────────────────────────
-st.subheader("Gargalos por Tipo OS")
+df_f = df_f[df_f["regional"].isin(regional)]
 
-n_days = filtered['date'].nunique()
-if n_days > 0:
-    by_tipo = (
-        filtered.groupby('tipo_os')
-        .size()
-        .reset_index(name='Total')
-        .sort_values('Total', ascending=False)
+base = st.sidebar.multiselect(
+    "Base",
+    options=sorted(df_f["base"].dropna().unique()),
+    default=sorted(df_f["base"].dropna().unique())
+)
+
+df_f = df_f[df_f["base"].isin(base)]
+
+sigla = st.sidebar.multiselect(
+    "Sigla",
+    options=sorted(df_f["sigla"].dropna().unique()),
+    default=sorted(df_f["sigla"].dropna().unique())
+)
+
+df_f = df_f[df_f["sigla"].isin(sigla)]
+
+grupo_os = st.sidebar.multiselect(
+    "Grupo OS",
+    options=sorted(df_f["grupo_os"].dropna().unique()),
+    default=sorted(df_f["grupo_os"].dropna().unique())
+)
+
+df_f = df_f[df_f["grupo_os"].isin(grupo_os)]
+
+tipo_os = st.sidebar.multiselect(
+    "Tipo OS",
+    options=sorted(df_f["tipo_os"].dropna().unique()),
+    default=sorted(df_f["tipo_os"].dropna().unique())
+)
+
+df_f = df_f[df_f["tipo_os"].isin(tipo_os)]
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric(
+    "OS analisadas",
+    f"{len(df_f):,}".replace(",", ".")
+)
+
+col2.metric(
+    "Média dias criação → atribuição",
+    round(df_f["dias_abertura_atribuicao"].mean(), 2)
+)
+
+col3.metric(
+    "% FORA DO TURNO",
+    round((df_f["nivel_risco"] == "FORA DO TURNO").mean() * 100, 2)
+)
+
+col4.metric(
+    "% EMERGÊNCIA",
+    round((df_f["nivel_risco"] == "EMERGÊNCIA").mean() * 100, 2)
+)
+
+
+bins = [-np.inf, 0, 1, 2, 3, 5, 7, 14, np.inf]
+labels = [
+    "Mesmo dia",
+    "1 dia",
+    "2 dias",
+    "3 dias",
+    "4–5 dias",
+    "6–7 dias",
+    "8–14 dias",
+    ">14 dias"
+]
+
+df_f["bin_dias_atribuicao"] = pd.cut(
+    df_f["dias_abertura_atribuicao"],
+    bins=bins,
+    labels=labels
+)
+
+bin_chart = (
+    alt.Chart(df_f)
+    .mark_bar()
+    .encode(
+        x=alt.X("bin_dias_atribuicao:N", sort=labels, title="Dias até atribuição"),
+        y=alt.Y("count()", title="Quantidade de OS"),
+        tooltip=["count()"]
     )
-    by_tipo['Média Diária'] = (by_tipo['Total'] / n_days).round(1)
-    by_tipo['% do Total'] = (by_tipo['Total'] / by_tipo['Total'].sum() * 100).round(1)
-
-    # Bar chart - Top 10 or all if few
-    top_tipo = by_tipo.head(12)  # adjust if you have many tipos
-    fig_tipo, ax_tipo = plt.subplots(figsize=(9, 5.5))
-    bars = ax_tipo.barh(top_tipo['tipo_os'], top_tipo['Média Diária'], color='cornflowerblue')
-    ax_tipo.set_xlabel("Média diária de atribuições")
-    ax_tipo.set_title(f"Média diária por Tipo OS ({n_days} dias)")
-    ax_tipo.invert_yaxis()
-    ax_tipo.grid(True, axis='x', alpha=0.3, linestyle='--')
-
-    for bar in bars:
-        width = bar.get_width()
-        ax_tipo.text(width + 0.1, bar.get_y() + bar.get_height()/2,
-                     f'{width:.1f}', va='center', fontsize=10)
-
-    st.pyplot(fig_tipo)
-
-    st.caption("Tabela detalhada:")
-    st.dataframe(by_tipo[['tipo_os', 'Média Diária', 'Total', '% do Total']], 
-                 hide_index=True, use_container_width=True)
-
-# ── Bottlenecks: Grupo OS ──────────────────────────────────────────
-st.subheader("Gargalos por Grupo OS")
-
-by_grupo = (
-    filtered.groupby('grupo_os')
-    .size()
-    .reset_index(name='Total')
-    .sort_values('Total', ascending=False)
 )
-by_grupo['Média Diária'] = (by_grupo['Total'] / n_days).round(1)
-by_grupo['% do Total'] = (by_grupo['Total'] / by_grupo['Total'].sum() * 100).round(1)
 
-top_grupo = by_grupo.head(10)
-fig_grupo, ax_grupo = plt.subplots(figsize=(9, 5))
-bars_g = ax_grupo.barh(top_grupo['grupo_os'], top_grupo['Média Diária'], color='lightcoral')
-ax_grupo.set_xlabel("Média diária de atribuições")
-ax_grupo.set_title(f"Média diária por Grupo OS ({n_days} dias)")
-ax_grupo.invert_yaxis()
-ax_grupo.grid(True, axis='x', alpha=0.3, linestyle='--')
+st.subheader("Distribuição — Tempo até atribuição")
+st.altair_chart(bin_chart, use_container_width=True)
 
-for bar in bars_g:
-    width = bar.get_width()
-    ax_grupo.text(width + 0.1, bar.get_y() + bar.get_height()/2,
-                  f'{width:.1f}', va='center', fontsize=10)
 
-st.pyplot(fig_grupo)
+risk_chart = (
+    alt.Chart(df_f)
+    .mark_bar()
+    .encode(
+        x=alt.X("nivel_risco:N", title="Nível de risco"),
+        y=alt.Y("count()", title="Quantidade"),
+        tooltip=["count()"]
+    )
+)
 
-st.caption("Tabela detalhada:")
-st.dataframe(by_grupo[['grupo_os', 'Média Diária', 'Total', '% do Total']], 
-             hide_index=True, use_container_width=True)
+st.subheader("Distribuição por nível de risco")
+st.altair_chart(risk_chart, use_container_width=True)
 
-# Footer info
-st.caption(
-    f"Período: {filtered['date'].min():%d/%m/%Y} – {filtered['date'].max():%d/%m/%Y} "
-    f"• {n_days} dias • {len(filtered):,} atribuições"
+
+st.subheader("Tabela resumida")
+
+table = (
+    df_f
+    .groupby(["estado", "regional", "base", "grupo_os", "tipo_os", "nivel_risco"])
+    .agg(
+        os_qtd=("nivel_risco", "count"),
+        media_dias_atribuicao=("dias_abertura_atribuicao", "mean"),
+        media_horas_ate_prazo=("horas_ate_prazo", "mean")
+    )
+    .reset_index()
+)
+
+st.dataframe(
+    table.sort_values("os_qtd", ascending=False),
+    use_container_width=True
 )
