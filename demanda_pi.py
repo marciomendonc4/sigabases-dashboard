@@ -51,6 +51,14 @@ else:
     df_f = df_grupo.copy()
 
 
+base = st.sidebar.multiselect(
+    "Base",
+    options=sorted(df_f["BASE"].dropna().unique()),
+    default=sorted(df_f["BASE"].dropna().unique())
+)
+
+df_f = df_f[df_f["BASE"].isin(base)]
+
 regioes = st.sidebar.multiselect(
     "Região",
     options=sorted(df["REGIAO"].dropna().unique()),
