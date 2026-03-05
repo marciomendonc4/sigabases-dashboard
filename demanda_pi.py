@@ -30,7 +30,23 @@ def load_data():
 
 df = load_data()
 
+df["DATA"] = pd.to_datetime(df["DATA"])
 
+df["MES_NUM"] = df["DATA"].dt.month
+
+df["PERIODO"] = df["MES_NUM"].apply(
+    lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
+)
+
+periodos = ["Todos", "Período Seco", "Período Úmido"]
+
+periodo_selecionado = st.selectbox(
+    "Selecione o período climático",
+    periodos
+)
+
+if periodo_selecionado != "Todos":
+    df = df[df["PERIODO"] == periodo_selecionado]
 
 
 grupo_os = st.sidebar.multiselect(
