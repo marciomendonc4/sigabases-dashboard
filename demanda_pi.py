@@ -38,6 +38,30 @@ df["PERIODO"] = df["MES_NUM"].apply(
     lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
 )
 
+df["DATA"] = pd.to_datetime(df["DATA"])
+
+df["MES_NUM"] = df["DATA"].dt.month
+
+meses_pt = {
+    1: "Jan",
+    2: "Fev",
+    3: "Mar",
+    4: "Abr",
+    5: "Mai",
+    6: "Jun",
+    7: "Jul",
+    8: "Ago",
+    9: "Set",
+    10: "Out",
+    11: "Nov",
+    12: "Dez"
+}
+
+df["MES"] = df["MES_NUM"].map(meses_pt)
+
+ordem_meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
+df["MES"] = pd.Categorical(df["MES"], categories=ordem_meses, ordered=True)
+
 periodos = ["Todos", "Período Seco", "Período Úmido"]
 
 periodo_selecionado = st.selectbox(
