@@ -236,6 +236,27 @@ st.subheader("Comportamento Mensal do TMA")
 df_f["MES_NUM"] = df_f["DATA"].dt.month
 df_f["MES_NOME"] = df_f["DATA"].dt.strftime("%b")
 
+df_f["MES_NUM"] = df_f["DATA"].dt.month
+
+meses_pt = {
+    1: "Jan",
+    2: "Fev",
+    3: "Mar",
+    4: "Abr",
+    5: "Mai",
+    6: "Jun",
+    7: "Jul",
+    8: "Ago",
+    9: "Set",
+    10: "Out",
+    11: "Nov",
+    12: "Dez"
+}
+
+df_f["MES_NOME"] = df_f["MES_NUM"].map(meses_pt)
+ordem_meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
+df_f["MES_NOME"] = pd.Categorical(df_f["MES_NOME"], categories=ordem_meses, ordered=True)
+
 tma_mensal = (
     df_f.groupby(["MES_NUM", "MES_NOME"])["TMA_HORAS"]
     .mean()
@@ -275,7 +296,25 @@ if "NR_IMPROD" in df_f.columns:
     improd = df_f[df_f["NR_IMPROD"] == "NR IMPROCEDENTE"].copy()
 
     improd["MES_NUM"] = improd["DATA"].dt.month
-    improd["MES_NOME"] = improd["DATA"].dt.strftime("%b")
+
+    meses_pt = {
+        1: "Jan",
+        2: "Fev",
+        3: "Mar",
+        4: "Abr",
+        5: "Mai",
+        6: "Jun",
+        7: "Jul",
+        8: "Ago",
+        9: "Set",
+        10: "Out",
+        11: "Nov",
+        12: "Dez"
+    }
+
+    improd["MES_NOME"] = improd["MES_NUM"].map(meses_pt)
+    ordem_meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
+    improd["MES_NOME"] = pd.Categorical(improd["MES_NOME"], categories=ordem_meses, ordered=True)
 
     improd_mensal = (
         improd.groupby(["MES_NUM", "MES_NOME"])
