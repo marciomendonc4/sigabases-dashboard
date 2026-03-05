@@ -32,6 +32,7 @@ df = load_data()
 
 
 
+
 grupo_os = st.sidebar.multiselect(
     "Grupo OS",
     options=sorted(df["GRUPO_OS"].dropna().unique()),
@@ -136,6 +137,8 @@ ax.grid(True, linestyle="--", alpha=0.4)
 
 st.pyplot(fig)
 
+
+
 st.subheader("Demanda Diária por Região")
 
 demanda = (
@@ -187,3 +190,80 @@ for i in linhas:
             ax.set_title(regiao)
 
             st.pyplot(fig)
+
+st.subheader("Comportamento Mensal do TMA")
+
+df_f["MES_NUM"] = df_f["DATA"].dt.month
+df_f["MES_NOME"] = df_f["DATA"].dt.strftime("%b")
+
+tma_mensal = (
+    df_f.groupby(["MES_NUM", "MES_NOME"])["TMA_HORAS"]
+    .mean()
+    .reset_index()
+    .sort_values("MES_NUM")
+)
+
+tma_mensal["PERIODO"] = tma_mensal["MES_NUM"].apply(
+    lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
+)
+
+fig, ax = plt.subplots(figsize=(12,5))
+
+cores = [
+    "#1f77b4" if p == "Período Seco" else "#d62728"
+    for p in tma_mensal["PERIODO"]
+]
+
+ax.bar(tma_mensal["MES_NOME"], tma_mensal["TMA_HORAS"], color=cores)
+
+ax.set_title("Concentração do Tempo Médio de Atendimento por Mês")
+ax.set_xlabel("Mês")
+ax.set_ylabel("Média TMA (horas)")
+ax.grid(True, linestyle="--", alpha=0.4)
+
+st.pyplot(fig)
+
+st.caption(
+    "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)"
+)
+
+
+st.subheader("Incidência de Improcedências")
+
+if "NR_IMPROD" in df_f.columns:
+
+    improd = df_f[df_f["NR_IMPROD"] == "NR IMPROCEDENTE"].copy()
+
+    improd["MES_NUM"] = improd["DATA"].dt.month
+    improd["MES_NOME"] = improd["DATA"].dt.strftime("%b")
+
+    improd_mensal = (
+        improd.groupby(["MES_NUM", "MES_NOME"])
+        .size()
+        .reset_index(name="QTD")
+        .sort_values("MES_NUM")
+    )
+
+    improd_mensal["PERIODO"] = improd_mensal["MES_NUM"].apply(
+        lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
+    )
+
+    fig, ax = plt.subplots(figsize=(12,5))
+
+    cores = [
+        "#1f77b4" if p == "Período Seco" else "#d62728"
+        for p in improd_mensal["PERIODO"]
+    ]
+
+    ax.bar(improd_mensal["MES_NOME"], improd_mensal["QTD"], color=cores)
+
+    ax.set_title("Incidência de Improcedências")
+    ax.set_xlabel("Mês")
+    ax.set_ylabel("Quantidade")
+    ax.grid(True, linestyle="--", alpha=0.4)
+
+    st.pyplot(fig)
+
+    st.caption(
+        "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)"
+    )
