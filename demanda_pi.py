@@ -346,3 +346,63 @@ if "NR_IMPROD" in df_f.columns:
     st.caption(
         "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)"
     )
+
+st.subheader("Incidência de Ligações Novas (LN)")
+
+if "GRUPO_OS" in df_f.columns:
+
+    ln = df_f[df_f["GRUPO_OS"] == "LN"].copy()
+
+    ln["MES_NUM"] = ln["DATA"].dt.month
+
+    meses_pt = {
+        1: "Jan",
+        2: "Fev",
+        3: "Mar",
+        4: "Abr",
+        5: "Mai",
+        6: "Jun",
+        7: "Jul",
+        8: "Ago",
+        9: "Set",
+        10: "Out",
+        11: "Nov",
+        12: "Dez"
+    }
+
+    ln["MES_NOME"] = ln["MES_NUM"].map(meses_pt)
+
+    ordem_meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
+
+    ln["MES_NOME"] = pd.Categorical(
+        ln["MES_NOME"],
+        categories=ordem_meses,
+        ordered=True
+    )
+
+    ln_mensal = (
+        ln.groupby(["MES_NUM", "MES_NOME"])
+        .size()
+        .reset_index(name="QTD")
+        .sort_values("MES_NUM")
+    )
+
+    ln_mensal["PERIODO"] = ln_mensal["MES_NUM"].apply(
+        lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
+    )
+
+    fig, ax = plt.subplots(figsize=(12,5))
+
+    cores = [
+        "#d62728" if p == "Período Seco" else "#1f77b4"
+        for p in ln_mensal["PERIODO"]
+    ]
+
+    ax.bar(ln_mensal["MES_NOME"], ln_mensal["QTD"], color=cores)
+
+    ax.set_title("Incidência de Ligações Novas (LN)")
+    ax.set_xlabel("Mês")
+    ax.set_ylabel("Quantidade")
+    ax.grid(True, linestyle="--", alpha=0.4)
+
+    st.pyplot(fig)
