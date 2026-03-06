@@ -330,7 +330,7 @@ if "NR_IMPROD" in df_f.columns:
     fig, ax = plt.subplots(figsize=(12,5))
 
     cores = [
-        "#1f77b4" if p == "Período Seco" else "#d62728"
+        "#d62728" if p == "Período Seco" else "#1f77b4"
         for p in improd_mensal["PERIODO"]
     ]
 
