@@ -400,7 +400,7 @@ if "GRUPO_OS" in df_f.columns:
 
     ax.bar(ln_mensal["MES_NOME"], ln_mensal["QTD"], color=cores)
 
-    ax.set_title("Execuções de Suspensões de Fornecimento (CT)")
+    ax.set_title("Incidência de Ligações Novas (LN)")
     ax.set_xlabel("Mês")
     ax.set_ylabel("Quantidade")
     ax.grid(True, linestyle="--", alpha=0.4)
@@ -459,7 +459,7 @@ if "GRUPO_OS" in df_f.columns:
 
     ax.bar(ln_mensal["MES_NOME"], ln_mensal["QTD"], color=cores)
 
-    ax.set_title("Incidência de Ligações Novas (LN)")
+    ax.set_title("Execuções de Suspensões de Fornecimento (CT)")
     ax.set_xlabel("Mês")
     ax.set_ylabel("Quantidade")
     ax.grid(True, linestyle="--", alpha=0.4)
