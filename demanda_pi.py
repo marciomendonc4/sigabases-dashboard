@@ -284,6 +284,11 @@ ax.axhline(
 )
 
 # Anotação da referência (mais limpa e profissional)
+
+ax.text(0.98, referencia_valor + 0.02, referencia_texto, transform=ax.get_yaxis_transform(),
+            fontsize=10, fontweight='bold', ha='right', va='bottom',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='#DDDDDD', alpha=0.9))
+"""
 ax.text(
     x=0.5,                    # um pouco à direita do início
     y=referencia_valor + 0.03,  # um pouco acima da linha
@@ -295,6 +300,7 @@ ax.text(
     ha="left",
     bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.8)
 )
+"""
 
 ax.set_title("Concentração do Tempo Médio de Atendimento por Mês")
 ax.set_xlabel("Mês")
