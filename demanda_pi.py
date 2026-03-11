@@ -233,24 +233,15 @@ for i in linhas:
 
 st.subheader("Comportamento Mensal do TMA")
 
+
 df_f["MES_NUM"] = df_f["DATA"].dt.month
 df_f["MES_NOME"] = df_f["DATA"].dt.strftime("%b")
 
 df_f["MES_NUM"] = df_f["DATA"].dt.month
 
 meses_pt = {
-    1: "Jan",
-    2: "Fev",
-    3: "Mar",
-    4: "Abr",
-    5: "Mai",
-    6: "Jun",
-    7: "Jul",
-    8: "Ago",
-    9: "Set",
-    10: "Out",
-    11: "Nov",
-    12: "Dez"
+    1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
 }
 
 df_f["MES_NOME"] = df_f["MES_NUM"].map(meses_pt)
@@ -268,7 +259,12 @@ tma_mensal["PERIODO"] = tma_mensal["MES_NUM"].apply(
     lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
 )
 
-fig, ax = plt.subplots(figsize=(12,5))
+
+
+referencia_valor = 0.95
+referencia_texto = f"Referência TMA: {referencia_valor:.2f} h"
+
+fig, ax = plt.subplots(figsize=(12, 5))
 
 cores = [
     "#d62728" if p == "Período Seco" else "#1f77b4"
@@ -277,17 +273,43 @@ cores = [
 
 ax.bar(tma_mensal["MES_NOME"], tma_mensal["TMA_HORAS"], color=cores)
 
+
+ax.axhline(
+    y=referencia_valor,
+    color="#7f7f7f",         
+    linestyle="--",           
+    linewidth=1.4,
+    alpha=0.7,
+    zorder=10
+)
+
+# Anotação da referência (mais limpa e profissional)
+ax.text(
+    x=0.5,                    # um pouco à direita do início
+    y=referencia_valor + 0.03,  # um pouco acima da linha
+    s=referencia_texto,
+    color="#4d4d4d",
+    fontsize=10.5,
+    fontweight="medium",
+    va="bottom",
+    ha="left",
+    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.8)
+)
+
 ax.set_title("Concentração do Tempo Médio de Atendimento por Mês")
 ax.set_xlabel("Mês")
 ax.set_ylabel("Média TMA (horas)")
 ax.grid(True, linestyle="--", alpha=0.4)
 
+# Opcional: limitar o eixo y para não cortar a anotação (ajuste conforme seus dados)
+# ax.set_ylim(0, max(tma_mensal["TMA_HORAS"].max() * 1.15, referencia_valor * 1.4))
+
 st.pyplot(fig)
 
 st.caption(
-    "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)"
+    "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)\n"
+    "Linha tracejada: meta de referência TMA"
 )
-
 
 st.subheader("Incidência de Improcedências")
 
