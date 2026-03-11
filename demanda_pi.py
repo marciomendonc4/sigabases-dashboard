@@ -106,17 +106,151 @@ regioes = st.sidebar.multiselect(
     default=sorted(df["REGIAO"].dropna().unique())
 )
 
+#df_f = df[df["REGIAO"].isin(regioes)]
+df_f = df_f[df_f["REGIAO"].isin(regioes)]
+st.subheader("Distribuição do Tempo Operacional")
+
+def boxplot_por_regiao(df, coluna, titulo):
+    dados = []
+    labels = []
+    medianas = []
+
+    for regiao, g in df.groupby("REGIAO"):
+        valores = g[coluna].dropna().values
+        if len(valores) > 0:
+            dados.append(valores)
+            labels.append(regiao)
+            medianas.append(np.median(valores))
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    bp = ax.boxplot(dados, labels=labels, showfliers=True)
+
+    for i, med in enumerate(medianas):
+        ax.text(
+            i + 1,
+            med,
+            f"{med:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+            bbox=dict(
+                facecolor="white",
+                edgecolor="black",
+                boxstyle="round,pad=0.25",
+                alpha=0.85
+            )
+        )
+
+    ax.set_title(titulo)
+    ax.set_xlabel("Região")
+    ax.set_ylabel("Horas")
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+    st.pyplot(fig)
+
+boxplot_por_regiao(df_f, "DESLOCAMENTO_HORAS", "Deslocamento por Região (horas)")
+boxplot_por_regiao(df_f, "DURACAO_HORAS", "Duração por Região (horas)")
+boxplot_por_regiao(df_f, "TMA_HORAS", "TMA – Duração + Deslocamento por Região (horas)")
+
+st.subheader("Distribuição do Tempo Operacional")
+
+metric = st.radio(
+    "Métrica",
+    ["DESLOCAMENTO_HORAS", "DURACAO_HORAS", "TMA_HORAS"],
+    horizontal=True
+)
+
+serie = (
+    df_f.groupby("ANO_MES")[metric]
+    .mean()
+    .reset_index()
+)
+
+fig, ax = plt.subplots(figsize=(16, 4))
+ax.plot(serie["ANO_MES"], serie[metric], marker="o")
+ax.set_title(f"Média Mensal – {metric}")
+ax.set_xlabel("Mês/Ano")
+ax.set_ylabel("Tempo")
+ax.tick_params(axis="x", rotation=45)
+ax.grid(True, linestyle="--", alpha=0.4)
+
+st.pyplot(fig)
+
+
+
+st.subheader("Demanda Diária por Região")
+
+demanda = (
+    df_f.groupby(["REGIAO", "DATA"])
+    .size()
+    .reset_index(name="QTD_OS")
+)
+
+fig, ax = plt.subplots(figsize=(16, 4))
+
+for regiao, g in demanda.groupby("REGIAO"):
+    ax.plot(g["DATA"], g["QTD_OS"], label=regiao)
+
+ax.set_title("Demanda diária")
+ax.set_xlabel("Data")
+ax.set_ylabel("OS por dia")
+ax.legend()
+ax.grid(True, linestyle="--", alpha=0.4)
+
+st.pyplot(fig)
+
+
+
+st.subheader("Distribuição do Balde por Região")
+
+regioes = sorted(df_f["REGIAO"].dropna().unique())
+
+pies_por_linha = 3
+linhas = range(0, len(regioes), pies_por_linha)
+
+for i in linhas:
+    cols = st.columns(pies_por_linha)
+
+    for col, regiao in zip(cols, regioes[i:i + pies_por_linha]):
+        with col:
+            dist = (
+                df_f[df_f["REGIAO"] == regiao]
+                .groupby("GRUPO_OS")
+                .size()
+            )
+
+            fig, ax = plt.subplots(figsize=(4, 4))
+            ax.pie(
+                dist.values,
+                labels=dist.index,
+                autopct="%1.1f%%",
+                startangle=90
+            )
+            ax.set_title(regiao)
+
+            st.pyplot(fig)
+
 st.subheader("Comportamento Mensal do TMA")
 
-# (você já tem esse bloco – mantive igual)
 df_f["MES_NUM"] = df_f["DATA"].dt.month
 df_f["MES_NOME"] = df_f["DATA"].dt.strftime("%b")
 
 df_f["MES_NUM"] = df_f["DATA"].dt.month
 
 meses_pt = {
-    1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
-    7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
+    1: "Jan",
+    2: "Fev",
+    3: "Mar",
+    4: "Abr",
+    5: "Mai",
+    6: "Jun",
+    7: "Jul",
+    8: "Ago",
+    9: "Set",
+    10: "Out",
+    11: "Nov",
+    12: "Dez"
 }
 
 df_f["MES_NOME"] = df_f["MES_NUM"].map(meses_pt)
@@ -134,11 +268,7 @@ tma_mensal["PERIODO"] = tma_mensal["MES_NUM"].apply(
     lambda x: "Período Seco" if 5 <= x <= 10 else "Período Úmido"
 )
 
-
-referencia_valor = 0.95
-referencia_texto = f"Referência TMA: {referencia_valor:.2f} h"
-
-fig, ax = plt.subplots(figsize=(12, 5))
+fig, ax = plt.subplots(figsize=(12,5))
 
 cores = [
     "#d62728" if p == "Período Seco" else "#1f77b4"
@@ -147,42 +277,15 @@ cores = [
 
 ax.bar(tma_mensal["MES_NOME"], tma_mensal["TMA_HORAS"], color=cores)
 
-# Linha de referência
-ax.axhline(
-    y=referencia_valor,
-    color="#7f7f7f",          # cinza neutro
-    linestyle="--",           # tracejado
-    linewidth=1.4,
-    alpha=0.7,
-    zorder=10
-)
-
-# Anotação da referência (mais limpa e profissional)
-ax.text(
-    x=0.5,                    # um pouco à direita do início
-    y=referencia_valor + 0.03,  # um pouco acima da linha
-    s=referencia_texto,
-    color="#4d4d4d",
-    fontsize=10.5,
-    fontweight="medium",
-    va="bottom",
-    ha="left",
-    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.8)
-)
-
 ax.set_title("Concentração do Tempo Médio de Atendimento por Mês")
 ax.set_xlabel("Mês")
 ax.set_ylabel("Média TMA (horas)")
 ax.grid(True, linestyle="--", alpha=0.4)
 
-# Opcional: limitar o eixo y para não cortar a anotação (ajuste conforme seus dados)
-# ax.set_ylim(0, max(tma_mensal["TMA_HORAS"].max() * 1.15, referencia_valor * 1.4))
-
 st.pyplot(fig)
 
 st.caption(
-    "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)\n"
-    "Linha tracejada: meta de referência TMA"
+    "Azul: Período Seco (maio a outubro) | Vermelho: Período Úmido (novembro a abril)"
 )
 
 
