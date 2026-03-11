@@ -276,9 +276,9 @@ ax.bar(tma_mensal["MES_NOME"], tma_mensal["TMA_HORAS"], color=cores)
 
 ax.axhline(
     y=referencia_valor,
-    color="#7f7f7f",         
+    color="#1F1F1F",         
     linestyle="--",           
-    linewidth=1.4,
+    linewidth=1.7,
     alpha=0.7,
     zorder=10
 )
@@ -301,7 +301,8 @@ ax.text(
     bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.8)
 )
 """
-
+for spine in ['top']:
+        ax.spines[spine].set_visible(False)
 ax.set_title("Concentração do Tempo Médio de Atendimento por Mês")
 ax.set_xlabel("Mês")
 ax.set_ylabel("Média TMA (horas)")
