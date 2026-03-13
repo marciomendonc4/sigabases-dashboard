@@ -176,29 +176,29 @@ else:
     ).add_to(m)
 
     # -----------------------------
-    # COLOR MAP BY GRUPO_OS
+    # TEAM COLORED POINTS
     # -----------------------------
+
+    cores = [
+        "red","blue","green","purple","orange",
+        "darkred","lightred","beige","darkblue",
+        "darkgreen","cadetblue","darkpurple"
+    ]
+
+    equipes_lista = df["EQUIPE"].unique()
 
     color_map = {
-        "CORTE": "red",
-        "LN": "blue",
-        "RELIGAÇÃO": "green"
+        equipe: cores[i % len(cores)]
+        for i, equipe in enumerate(equipes_lista)
     }
-
-    # -----------------------------
-    # EXECUTION BUBBLES
-    # -----------------------------
 
     for _, row in df.iterrows():
 
-        cor = color_map.get(row["GRUPO_OS"], "gray")
-
         folium.CircleMarker(
             location=[row["LATITUDE"], row["LONGITUDE"]],
-            radius=4,
-            color=cor,
+            radius=3,
+            color=color_map[row["EQUIPE"]],
             fill=True,
-            fill_color=cor,
             fill_opacity=0.8,
             popup=f"""
             Equipe: {row['EQUIPE']}<br>
