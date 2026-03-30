@@ -15,14 +15,16 @@ df = importar_excel()
 
 st.title("Distribuição do Tempo Médio de Atendimento e Produtividade (UPS)")
 
-st.markdown("""
-**Como interpretar os gráficos:**  
-- Boxplots mostram a distribuição dos indicadores  
-- A linha central representa a mediana  
-- Maior dispersão indica maior variabilidade operacional  
-- UPS Efetiva reflete o esforço real (tempo)  
-- UPS BID reflete a complexidade real dos serviços executados  
-""")
+# =========================
+# DATA CLEANING (IMPORTANT)
+# =========================
+cols_numericas = [
+    "media", "media_duracao", "media_deslocamento",
+    "ups_efetiva", "ups_realizada", "ups_bid"
+]
+
+for col in cols_numericas:
+    df[col] = pd.to_numeric(df[col], errors="coerce")
 
 # =========================
 # FILTRO TIPO OS
@@ -35,18 +37,13 @@ tipo_os_selecionado = st.selectbox(
     lista_tipo_os
 )
 
-st.caption(
-    "**NR's** refere-se aos tipos **COL**, **IND** e **IMPROD**.\n"
-    "**RC** refere-se à reativação sem instalação de medidor e ramal."
-)
-
 if tipo_os_selecionado == "NR's":
     df_filtrado = df[df['tipo_os'].isin(['NR IMPROD', 'NR IND', 'NR COL'])].copy()
 else:
     df_filtrado = df[df['tipo_os'] == tipo_os_selecionado].copy()
 
 # =========================
-# FILTRO REGIONAL (NOVO)
+# FILTRO REGIONAL
 # =========================
 lista_regional = sorted(df_filtrado['regional_nome'].dropna().unique().tolist())
 
@@ -56,7 +53,7 @@ regional_selecionada = st.multiselect(
 )
 
 # =========================
-# DEFINIÇÃO DINÂMICA DO EIXO X
+# EIXO DINÂMICO
 # =========================
 if regional_selecionada:
     df_filtrado = df_filtrado[df_filtrado['regional_nome'].isin(regional_selecionada)]
@@ -67,14 +64,24 @@ else:
     label_x = "Regional"
 
 # =========================
-# FUNÇÃO DE BOXPLOT DINÂMICO
+# FUNÇÃO BOXPLOT ROBUSTA
 # =========================
 def boxplot_dinamico(df, coluna, titulo, ylabel):
+    df_plot = df.copy()
+
+    # remove nulls
+    df_plot = df_plot.dropna(subset=[coluna])
+
     dados = (
-        df.groupby(eixo_x)[coluna]
+        df_plot.groupby(eixo_x)[coluna]
         .apply(list)
+        .loc[lambda x: x.map(len) > 0]
         .sort_index()
     )
+
+    if dados.empty:
+        st.warning(f"Sem dados para {titulo}")
+        return
 
     fig, ax = plt.subplots(figsize=(12, 5))
 
@@ -86,6 +93,7 @@ def boxplot_dinamico(df, coluna, titulo, ylabel):
         medianprops=dict(linewidth=2)
     )
 
+    # median labels
     for mediana in boxplot['medians']:
         x, y = mediana.get_xydata()[1]
         ax.text(x, y, f"{y:.2f}", ha="center", va="bottom", fontsize=9)
@@ -103,79 +111,62 @@ def boxplot_dinamico(df, coluna, titulo, ylabel):
 # =========================
 st.subheader("Distribuição dos Tempos")
 
-boxplot_dinamico(
-    df_filtrado,
-    "media",
-    f"TMA – Tempo Médio de Atendimento ({tipo_os_selecionado})",
-    "Horas"
-)
-
-boxplot_dinamico(
-    df_filtrado,
-    "media_duracao",
-    f"Duração do Atendimento ({tipo_os_selecionado})",
-    "Horas"
-)
-
-boxplot_dinamico(
-    df_filtrado,
-    "media_deslocamento",
-    f"Tempo de Deslocamento ({tipo_os_selecionado})",
-    "Horas"
-)
+boxplot_dinamico(df_filtrado, "media", f"TMA ({tipo_os_selecionado})", "Horas")
+boxplot_dinamico(df_filtrado, "media_duracao", f"Duração ({tipo_os_selecionado})", "Horas")
+boxplot_dinamico(df_filtrado, "media_deslocamento", f"Deslocamento ({tipo_os_selecionado})", "Horas")
 
 # =========================
-# UPS BOXPLOTS (NOVO)
+# UPS BOXPLOTS
 # =========================
 st.markdown("---")
 st.subheader("Distribuição de Produtividade (UPS)")
 
-boxplot_dinamico(
-    df_filtrado,
-    "ups_realizada",
-    f"UPS Realizada ({tipo_os_selecionado})",
-    "UPS"
-)
-
-boxplot_dinamico(
-    df_filtrado,
-    "ups_efetiva",
-    f"UPS Efetiva (baseado em TMA) ({tipo_os_selecionado})",
-    "UPS"
-)
-
-boxplot_dinamico(
-    df_filtrado,
-    "ups_bid",
-    f"UPS BID (complexidade real) ({tipo_os_selecionado})",
-    "UPS"
-)
+boxplot_dinamico(df_filtrado, "ups_realizada", f"UPS Realizada ({tipo_os_selecionado})", "UPS")
+boxplot_dinamico(df_filtrado, "ups_efetiva", f"UPS Efetiva ({tipo_os_selecionado})", "UPS")
+boxplot_dinamico(df_filtrado, "ups_bid", f"UPS BID ({tipo_os_selecionado})", "UPS")
 
 # =========================
-# SCATTER PLOT (🔥 PRINCIPAL)
+# SCATTER PLOT (FIXED)
 # =========================
 st.markdown("---")
-st.subheader("Relação entre UPS Realizada vs UPS Efetiva")
+st.subheader("Desvio do Modelo de Produtividade")
 
-fig, ax = plt.subplots(figsize=(8, 6))
+df_scatter = df_filtrado.dropna(subset=["ups_realizada", "ups_efetiva"]).copy()
 
-ax.scatter(
-    df_filtrado["ups_realizada"],
-    df_filtrado["ups_efetiva"],
-    alpha=0.6
-)
+if df_scatter.empty:
+    st.warning("Sem dados suficientes para o scatter plot")
+else:
+    df_scatter["desvio"] = df_scatter["ups_efetiva"] - df_scatter["ups_realizada"]
 
-# Linha de referência (perfeita calibração)
-max_val = max(
-    df_filtrado["ups_realizada"].max(),
-    df_filtrado["ups_efetiva"].max()
-)
+    fig, ax = plt.subplots(figsize=(8, 6))
 
-ax.plot([0, max_val], [0, max_val], linestyle="--")
+    scatter = ax.scatter(
+        df_scatter["ups_realizada"],
+        df_scatter["ups_efetiva"],
+        c=df_scatter["desvio"],
+        cmap="coolwarm",
+        alpha=0.6,
+        s=40
+    )
 
-ax.set_xlabel("UPS Realizada")
-ax.set_ylabel("UPS Efetiva")
-ax.set_title("Desvio do Modelo de Produtividade")
-ax.grid(True, linestyle="--", alpha=0.4)
+    # colorbar
+    cbar = plt.colorbar(scatter)
+    cbar.set_label("Desvio (Efetiva - Realizada)")
 
-st.pyplot(fig)
+    # diagonal reference
+    max_val = max(
+        df_scatter["ups_realizada"].max(),
+        df_scatter["ups_efetiva"].max()
+    )
+
+    ax.plot([0, max_val], [0, max_val], linestyle="--")
+
+    ax.set_xlim(0, max_val)
+    ax.set_ylim(0, max_val)
+
+    ax.set_xlabel("UPS Realizada")
+    ax.set_ylabel("UPS Efetiva")
+    ax.set_title("Desvio do Modelo de Produtividade")
+    ax.grid(True, linestyle="--", alpha=0.4)
+
+    st.pyplot(fig)
