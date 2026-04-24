@@ -15,27 +15,29 @@ def load_data():
 df = load_data()
 
 # =========================
-# DATETIME + FEATURES
+# DATETIME (ROBUST)
 # =========================
 df["CRIACAO_TS"] = pd.to_datetime(df["CRIACAO_TS"], errors="coerce")
 df["ATRIBUICAO_TS"] = pd.to_datetime(df["ATRIBUICAO_TS"], errors="coerce")
 df["INICIO_TS"] = pd.to_datetime(df["INICIO_TS"], errors="coerce")
 
-st.write(df[["ATRIBUICAO_TS"]].dtypes)
-
-# Drop broken rows (important)
+# remove broken rows
 df = df.dropna(subset=["ATRIBUICAO_TS", "INICIO_TS"])
 
-# Hour buckets
+# =========================
+# FEATURES
+# =========================
 df["hora_atr"] = df["ATRIBUICAO_TS"].dt.floor("h")
 df["hora_ini"] = df["INICIO_TS"].dt.floor("h")
 
-# Waiting time (minutes)
+df["hora_dia"] = df["ATRIBUICAO_TS"].dt.hour
+df["hora_ini_dia"] = df["INICIO_TS"].dt.hour
+
+# waiting time (minutes)
 df["fila_min"] = (df["INICIO_TS"] - df["ATRIBUICAO_TS"]).dt.total_seconds() / 60
 
-# COI vs Field delay
+# COI delay (minutes)
 df["coi_min"] = (df["ATRIBUICAO_TS"] - df["CRIACAO_TS"]).dt.total_seconds() / 60
-df["field_min"] = df["fila_min"]
 
 # =========================
 # FILTERS
@@ -62,66 +64,63 @@ if len(periodo) == 2:
     ]
 
 # =========================
-# DEMAND vs CAPACITY
+# AGGREGATIONS (AVERAGE DAY)
 # =========================
-demanda = df.groupby("hora_atr").size()
-capacidade = df.groupby("hora_ini").size()
 
-fluxo = pd.concat([demanda, capacidade], axis=1).fillna(0)
-fluxo.columns = ["atribuicoes", "inicios"]
-fluxo = fluxo.sort_index()
+# Demand vs capacity
+demanda_hora = df.groupby("hora_dia").size()
+capacidade_hora = df.groupby("hora_ini_dia").size()
 
-# =========================
-# BACKLOG
-# =========================
-fluxo["backlog"] = fluxo["atribuicoes"].cumsum() - fluxo["inicios"].cumsum()
+# Waiting time
+fila_hora = df.groupby("hora_dia")["fila_min"].mean()
 
-# =========================
-# WAITING TIME
-# =========================
-fila = df.groupby("hora_atr")["fila_min"].mean()
-
-# =========================
-# COI vs FIELD DELAY
-# =========================
-delay = df.groupby("hora_atr")[["coi_min", "field_min"]].mean()
+# COI vs Field
+coi_hora = df.groupby("hora_dia")["coi_min"].mean()
+field_hora = df.groupby("hora_dia")["fila_min"].mean()
 
 # =========================
 # PLOTS
 # =========================
 
 # ---- 1. Demand vs Capacity
-st.subheader("Demanda vs Capacidade")
+st.subheader("Demanda vs Capacidade (Perfil Médio Diário)")
 
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(fluxo.index, fluxo["atribuicoes"], label="Atribuições")
-ax.plot(fluxo.index, fluxo["inicios"], label="Inícios")
+fig, ax = plt.subplots(figsize=(10, 5))
+
+ax.plot(demanda_hora.index, demanda_hora.values, label="Atribuições")
+ax.plot(capacidade_hora.index, capacidade_hora.values, label="Inícios")
+
+ax.set_xticks(range(24))
+ax.set_xlabel("Hora do dia")
 ax.legend()
 ax.grid(True, linestyle="--", alpha=0.4)
+
 st.pyplot(fig)
 
-# ---- 2. Backlog
-st.subheader("Backlog (Fila Acumulada)")
+# ---- 2. Waiting Time
+st.subheader("Tempo Médio de Espera por Hora")
 
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(fluxo.index, fluxo["backlog"])
+fig, ax = plt.subplots(figsize=(10, 5))
+
+ax.plot(fila_hora.index, fila_hora.values)
+
+ax.set_xticks(range(24))
+ax.set_xlabel("Hora do dia")
 ax.grid(True, linestyle="--", alpha=0.4)
+
 st.pyplot(fig)
 
-# ---- 3. Waiting Time
-st.subheader("Tempo Médio de Espera")
-
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(fila.index, fila.values)
-ax.grid(True, linestyle="--", alpha=0.4)
-st.pyplot(fig)
-
-# ---- 4. COI vs Field Delay
+# ---- 3. COI vs Field Delay
 st.subheader("Decomposição do Tempo de Espera (COI vs Campo)")
 
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(delay.index, delay["coi_min"], label="COI")
-ax.plot(delay.index, delay["field_min"], label="Campo")
+fig, ax = plt.subplots(figsize=(10, 5))
+
+ax.plot(coi_hora.index, coi_hora.values, label="COI")
+ax.plot(field_hora.index, field_hora.values, label="Campo")
+
+ax.set_xticks(range(24))
+ax.set_xlabel("Hora do dia")
 ax.legend()
 ax.grid(True, linestyle="--", alpha=0.4)
+
 st.pyplot(fig)
