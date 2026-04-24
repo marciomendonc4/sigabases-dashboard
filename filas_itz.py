@@ -17,13 +17,18 @@ df = load_data()
 # =========================
 # DATETIME + FEATURES
 # =========================
-df["CRIACAO_TS"] = pd.to_datetime(df["CRIACAO_TS"])
-df["ATRIBUICAO_TS"] = pd.to_datetime(df["ATRIBUICAO_TS"])
-df["INICIO_TS"] = pd.to_datetime(df["INICIO_TS"])
+df["CRIACAO_TS"] = pd.to_datetime(df["CRIACAO_TS"], errors="coerce")
+df["ATRIBUICAO_TS"] = pd.to_datetime(df["ATRIBUICAO_TS"], errors="coerce")
+df["INICIO_TS"] = pd.to_datetime(df["INICIO_TS"], errors="coerce")
+
+st.write(df[["ATRIBUICAO_TS"]].dtypes)
+
+# Drop broken rows (important)
+df = df.dropna(subset=["ATRIBUICAO_TS", "INICIO_TS"])
 
 # Hour buckets
-df["hora_atr"] = df["ATRIBUICAO_TS"].dt.floor("H")
-df["hora_ini"] = df["INICIO_TS"].dt.floor("H")
+df["hora_atr"] = df["ATRIBUICAO_TS"].dt.floor("h")
+df["hora_ini"] = df["INICIO_TS"].dt.floor("h")
 
 # Waiting time (minutes)
 df["fila_min"] = (df["INICIO_TS"] - df["ATRIBUICAO_TS"]).dt.total_seconds() / 60
