@@ -1,0 +1,218 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+st.set_page_config(page_title="Análise de Volumetria", layout="wide")
+
+ARQUIVO = "ANALISE_VOLUMETRIA.xlsx"
+
+REGIONAIS = {
+    6: "SUL MA",
+    18: "LESTE MA",
+    25: "NORTE MA",
+    31: "NOROESTE MA"
+}
+
+MESES = {
+    1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr",
+    5: "Mai", 6: "Jun", 7: "Jul", 8: "Ago",
+    9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
+}
+
+
+@st.cache_data
+def carregar_dados():
+    df = pd.read_excel(ARQUIVO)
+    df.columns = df.columns.str.lower().str.strip()
+
+    df["mes"] = df["mes"].astype(int)
+    df["mes_label"] = df["mes"].map(MESES)
+    df["regional_nome"] = df["regional_id"].map(REGIONAIS).fillna(df["regional"].astype(str))
+
+    df["periodo_climatico"] = df["mes"].apply(
+        lambda x: "Período Chuvoso" if x in [11, 12, 1, 2, 3, 4] else "Período Seco"
+    )
+
+    for col in [
+        "vol_mensal",
+        "demanda_recebida_dpl",
+        "demanda_recebida_eqtl",
+        "demanda_recebida_gere",
+        "preco"
+    ]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    return df
+
+
+df = carregar_dados()
+
+st.title("Análise de Volumetria")
+st.caption("Comparativo entre volumetria contratual esperada e demanda recebida para execução.")
+
+with st.sidebar:
+    st.header("Filtros")
+
+    regionais_sel = st.multiselect(
+        "Regional",
+        options=sorted(df["regional_id"].dropna().unique()),
+        default=sorted(df["regional_id"].dropna().unique()),
+        format_func=lambda x: REGIONAIS.get(x, str(x))
+    )
+
+    df_filtro_regional = df[df["regional_id"].isin(regionais_sel)]
+
+    cidades_sel = st.multiselect(
+        "Cidade",
+        options=sorted(df_filtro_regional["cidade"].dropna().unique()),
+        default=sorted(df_filtro_regional["cidade"].dropna().unique())
+    )
+
+    processos_sel = st.multiselect(
+        "Processo",
+        options=sorted(df_filtro_regional["processo"].dropna().unique()),
+        default=sorted(df_filtro_regional["processo"].dropna().unique())
+    )
+
+    fontes_demanda = st.multiselect(
+        "Fonte da demanda",
+        ["DPL", "EQTL", "GERE"],
+        default=["DPL"]
+    )
+
+df_filtrado = df[
+    (df["regional_id"].isin(regionais_sel)) &
+    (df["cidade"].isin(cidades_sel)) &
+    (df["processo"].isin(processos_sel))
+].copy()
+
+df_filtrado["demanda_selecionada"] = 0
+
+if "DPL" in fontes_demanda:
+    df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_dpl"]
+
+if "EQTL" in fontes_demanda:
+    df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_eqtl"]
+
+if "GERE" in fontes_demanda:
+    df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_gere"]
+
+
+df_mes = (
+    df_filtrado
+    .groupby(["mes", "mes_label"], as_index=False)
+    .agg(
+        vol_mensal=("vol_mensal", "sum"),
+        demanda_mensal=("demanda_selecionada", "sum"),
+        valor_volumetria=("vol_mensal", lambda x: 0),
+    )
+    .sort_values("mes")
+)
+
+df_mes["vol_acumulada"] = df_mes["vol_mensal"].cumsum()
+df_mes["demanda_acumulada"] = df_mes["demanda_mensal"].cumsum()
+df_mes["limite_80"] = df_mes["vol_acumulada"] * 0.8
+df_mes["limite_120"] = df_mes["vol_acumulada"] * 1.2
+df_mes["aderencia_acumulada"] = df_mes["demanda_acumulada"] / df_mes["vol_acumulada"].replace(0, pd.NA)
+
+vol_total = df_mes["vol_mensal"].sum()
+demanda_total = df_mes["demanda_mensal"].sum()
+aderencia = demanda_total / vol_total if vol_total else 0
+gap = demanda_total - vol_total
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Volumetria esperada", f"{vol_total:,.0f}".replace(",", "."))
+col2.metric("Demanda recebida", f"{demanda_total:,.0f}".replace(",", "."))
+col3.metric("Aderência", f"{aderencia:.1%}")
+col4.metric("Gap", f"{gap:,.0f}".replace(",", "."))
+
+st.divider()
+
+st.subheader("Demanda acumulada vs Volumetria acumulada")
+
+df_acum_plot = df_mes.melt(
+    id_vars=["mes", "mes_label"],
+    value_vars=["vol_acumulada", "demanda_acumulada", "limite_80", "limite_120"],
+    var_name="indicador",
+    value_name="valor"
+)
+
+nomes_indicadores = {
+    "vol_acumulada": "Volumetria acumulada",
+    "demanda_acumulada": "Demanda acumulada",
+    "limite_80": "Limite 80%",
+    "limite_120": "Limite 120%"
+}
+
+df_acum_plot["indicador"] = df_acum_plot["indicador"].map(nomes_indicadores)
+
+graf_acum = (
+    alt.Chart(df_acum_plot)
+    .mark_line(point=True)
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="Quantidade"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        tooltip=["mes_label", "indicador", alt.Tooltip("valor:Q", format=",.0f")]
+    )
+    .properties(height=420)
+)
+
+st.altair_chart(graf_acum, use_container_width=True)
+
+st.subheader("Demanda mensal vs Volumetria mensal")
+
+df_mensal_plot = df_mes.melt(
+    id_vars=["mes", "mes_label"],
+    value_vars=["vol_mensal", "demanda_mensal"],
+    var_name="indicador",
+    value_name="valor"
+)
+
+df_mensal_plot["indicador"] = df_mensal_plot["indicador"].map({
+    "vol_mensal": "Volumetria mensal",
+    "demanda_mensal": "Demanda mensal"
+})
+
+graf_mensal = (
+    alt.Chart(df_mensal_plot)
+    .mark_bar()
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="Quantidade"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        xOffset="indicador:N",
+        tooltip=["mes_label", "indicador", alt.Tooltip("valor:Q", format=",.0f")]
+    )
+    .properties(height=420)
+)
+
+st.altair_chart(graf_mensal, use_container_width=True)
+
+st.subheader("Resumo por período climático")
+
+df_periodo = (
+    df_filtrado
+    .groupby("periodo_climatico", as_index=False)
+    .agg(
+        volumetria=("vol_mensal", "sum"),
+        demanda=("demanda_selecionada", "sum")
+    )
+)
+
+df_periodo["aderencia"] = df_periodo["demanda"] / df_periodo["volumetria"].replace(0, pd.NA)
+
+st.dataframe(
+    df_periodo,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Base filtrada")
+
+st.dataframe(
+    df_filtrado,
+    use_container_width=True,
+    hide_index=True
+)
