@@ -245,14 +245,20 @@ df_cidade["diagnostico"] = df_cidade.apply(
     axis=1
 )
 
-df_cidade["situacao"] = df_cidade["aderencia"].apply(
-    lambda x:
-        "🔴 Subdimensionado"
-        if x > 1.2 else
-        "🟢 Adequado"
-        if x >= 0.8 else
-        "🟡 Ociosidade"
-)
+def classificar_situacao(x):
+    if pd.isna(x):
+        return "⚪ Sem volumetria"
+
+    if x > 1.2:
+        return "🔴 Subdimensionado"
+
+    if x >= 0.8:
+        return "🟢 Adequado"
+
+    return "🟡 Ociosidade"
+
+
+df_cidade["situacao"] = df_cidade["aderencia"].apply(classificar_situacao)
 
 df_cidade = df_cidade.sort_values(
     "aderencia",
