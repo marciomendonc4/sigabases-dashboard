@@ -209,10 +209,97 @@ st.dataframe(
     hide_index=True
 )
 
-st.subheader("Base filtrada")
+st.subheader("Diagnóstico por cidade")
+
+df_cidade = (
+    df_filtrado
+    .groupby(["regional_nome", "cidade"], as_index=False)
+    .agg(
+        volumetria=("vol_mensal", "sum"),
+        demanda=("demanda_selecionada", "sum")
+    )
+)
+
+df_cidade["limite_80"] = df_cidade["volumetria"] * 0.8
+df_cidade["limite_120"] = df_cidade["volumetria"] * 1.2
+
+df_cidade["aderencia"] = (
+    df_cidade["demanda"] /
+    df_cidade["volumetria"].replace(0, pd.NA)
+)
+
+df_cidade["aderencia_pct"] = df_cidade["aderencia"] * 100
+
+df_cidade["gap"] = (
+    df_cidade["demanda"] -
+    df_cidade["volumetria"]
+)
+
+df_cidade["diagnostico"] = df_cidade.apply(
+    lambda row:
+        "Demanda insuficiente"
+        if row["demanda"] < row["limite_80"]
+        else "Dentro da faixa contratual"
+        if row["demanda"] <= row["limite_120"]
+        else "Demanda acima da volumetria",
+    axis=1
+)
+
+df_cidade["situacao"] = df_cidade["aderencia"].apply(
+    lambda x:
+        "🔴 Subdimensionado"
+        if x > 1.2 else
+        "🟢 Adequado"
+        if x >= 0.8 else
+        "🟡 Ociosidade"
+)
+
+df_cidade = df_cidade.sort_values(
+    "aderencia",
+    ascending=False
+)
 
 st.dataframe(
-    df_filtrado,
+    df_cidade,
     use_container_width=True,
-    hide_index=True
+    hide_index=True,
+    column_config={
+        "regional_nome": "Regional",
+
+        "cidade": "Cidade",
+
+        "volumetria": st.column_config.NumberColumn(
+            "Volumetria",
+            format="%.0f"
+        ),
+
+        "demanda": st.column_config.NumberColumn(
+            "Demanda",
+            format="%.0f"
+        ),
+
+        "limite_80": st.column_config.NumberColumn(
+            "Limite 80%",
+            format="%.0f"
+        ),
+
+        "limite_120": st.column_config.NumberColumn(
+            "Limite 120%",
+            format="%.0f"
+        ),
+
+        "aderencia_pct": st.column_config.NumberColumn(
+            "Aderência %",
+            format="%.1f"
+        ),
+
+        "gap": st.column_config.NumberColumn(
+            "Gap",
+            format="%.0f"
+        ),
+
+        "situacao": "Situação",
+
+        "diagnostico": "Diagnóstico"
+    }
 )
