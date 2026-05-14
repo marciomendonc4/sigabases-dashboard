@@ -124,16 +124,66 @@ with st.sidebar:
         default=sorted(df_filtro_regional["cidade"].dropna().unique())
     )
 
+    df_filtro_cidade = df_filtro_regional[
+        df_filtro_regional["cidade"].isin(cidades_sel)
+    ]
+
     processos_sel = st.multiselect(
         "Processo",
-        options=sorted(df_filtro_regional["processo"].dropna().unique()),
-        default=sorted(df_filtro_regional["processo"].dropna().unique())
+        options=sorted(df_filtro_cidade["processo"].dropna().unique()),
+        default=sorted(df_filtro_cidade["processo"].dropna().unique())
     )
+
+    df_filtro_processo = df_filtro_cidade[
+        df_filtro_cidade["processo"].isin(processos_sel)
+    ]
 
     servicos_sel = st.multiselect(
         "Serviço",
-        options=sorted(df_filtro_regional["servico2"].dropna().unique()),
-        default=sorted(df_filtro_regional["servico2"].dropna().unique())
+        options=sorted(df_filtro_processo["servico2"].dropna().unique()),
+        default=sorted(df_filtro_processo["servico2"].dropna().unique())
+    )
+
+    fontes_demanda = st.multiselect(
+        "Fonte da demanda",
+        ["DPL", "EQTL", "GERE"],
+        default=["DPL"]
+    )with st.sidebar:
+    st.header("Filtros")
+
+    regionais_sel = st.multiselect(
+        "Regional",
+        options=sorted(df["regional_id"].dropna().unique()),
+        default=sorted(df["regional_id"].dropna().unique()),
+        format_func=lambda x: REGIONAIS.get(x, str(x))
+    )
+
+    df_filtro_regional = df[df["regional_id"].isin(regionais_sel)]
+
+    cidades_sel = st.multiselect(
+        "Cidade",
+        options=sorted(df_filtro_regional["cidade"].dropna().unique()),
+        default=sorted(df_filtro_regional["cidade"].dropna().unique())
+    )
+
+    df_filtro_cidade = df_filtro_regional[
+        df_filtro_regional["cidade"].isin(cidades_sel)
+    ]
+
+    processos_sel = st.multiselect(
+        "Processo",
+        options=sorted(df_filtro_cidade["processo"].dropna().unique()),
+        default=sorted(df_filtro_cidade["processo"].dropna().unique())
+    )
+
+    df_filtro_processo = df_filtro_cidade[
+        df_filtro_cidade["processo"].isin(processos_sel)
+    ]
+
+    servicos_sel = st.multiselect(
+        "Serviço",
+        options=sorted(df_filtro_processo["servico2"].dropna().unique()),
+        default=sorted(df_filtro_processo["servico2"].dropna().unique())
     )
 
     fontes_demanda = st.multiselect(
