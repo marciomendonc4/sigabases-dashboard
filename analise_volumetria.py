@@ -545,9 +545,7 @@ df_ups_cidade["pct_meta"] = pd.to_numeric(
     errors="coerce"
 ).fillna(0)
 
-df_ups_cidade["pct_meta"] = (
-    df_ups_cidade["pct_meta"] * 100
-).round(2)
+
 
 def classificar_nota_ups(x):
     if pd.isna(x):
@@ -568,6 +566,9 @@ def classificar_situacao_ups(x):
     return "🔴 Abaixo do aceitável"
 
 df_ups_cidade["nota_ups"] = df_ups_cidade["pct_meta"].apply(classificar_nota_ups)
+df_ups_cidade["pct_meta"] = (
+    df_ups_cidade["pct_meta"] * 100
+).round(2)
 df_ups_cidade["situacao_ups"] = df_ups_cidade["ups_equipe_dia"].apply(classificar_situacao_ups)
 
 df_ups_cidade = df_ups_cidade.sort_values("saldo_equipes", ascending=False)
