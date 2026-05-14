@@ -90,7 +90,10 @@ colunas_numericas = [
     "tmd",
     "tme",
     "dias_ativos",
-    "qtd_equipe"
+    "qtd_equipe",
+    "ups_dpl",
+    "ups_gere",
+    "ups_eqtl",
 ]
 
 for col in colunas_numericas:
@@ -140,15 +143,19 @@ df_filtrado = df[
 ].copy()
 
 df_filtrado["demanda_selecionada"] = 0
+df_filtrado["ups_selecionada"] = 0
 
 if "DPL" in fontes_demanda:
     df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_dpl"]
+    df_filtrado["ups_selecionada"] += df_filtrado["ups_dpl"]
 
 if "EQTL" in fontes_demanda:
     df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_eqtl"]
+    df_filtrado["ups_selecionada"] += df_filtrado["ups_eqtl"]
 
 if "GERE" in fontes_demanda:
     df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_gere"]
+    df_filtrado["ups_selecionada"] += df_filtrado["ups_gere"]
 
 
 df_mes = (
@@ -433,10 +440,11 @@ df_ups_cidade = (
     df_ups_base
     .groupby(["regional_nome", "cidade"], as_index=False)
     .agg(
-        ups_total=("ups", "sum"),
+        ups_total=("ups_selecionada", "sum"),
         dias_uteis_medio=("dias_uteis", "mean")
     )
 )
+
 
 df_ups_cidade = df_ups_cidade.merge(
     df_equipes_atual,
@@ -470,6 +478,11 @@ df_ups_cidade["pct_meta"] = (
     df_ups_cidade["ups_equipe_dia"] /
     meta_ups
 )
+
+df_ups_cidade["pct_meta"] = (
+    df_ups_cidade["pct_meta"] * 100
+).round(2)
+
 
 def classificar_nota_ups(x):
     if pd.isna(x):
@@ -532,7 +545,7 @@ st.dataframe(
         "ups_equipe_dia": st.column_config.NumberColumn("UPS/equipe/dia", format="%.1f"),
         "equipes_sustentadas": st.column_config.NumberColumn("Equipes sustentadas", format="%.1f"),
         "saldo_equipes": st.column_config.NumberColumn("Saldo equipes", format="%.1f"),
-        "pct_meta": st.column_config.NumberColumn("% da meta", format="%.2%"),
+        "pct_meta": st.column_config.NumberColumn("% da meta", format="%.2f%%"),
         "nota_ups": "Nota UPS",
         "situacao_ups": "Situação UPS"
     },
