@@ -256,9 +256,7 @@ df_cidade = (
     )
 )
 
-df_cidade = df_cidade[
-    df_cidade["situacao"].isin(situacoes_sel)
-]
+
 
 df_cidade = df_cidade[
     (df_cidade["volumetria"] > 0) |
@@ -288,6 +286,77 @@ df_cidade["diagnostico"] = df_cidade.apply(
         if row["demanda"] <= row["limite_120"]
         else "Demanda acima da volumetria",
     axis=1
+)
+
+
+
+def classificar_situacao(x):
+    if pd.isna(x):
+        return "⚪ Sem volumetria"
+
+    if x > 1.2:
+        return "🔴 Subdimensionado"
+
+    if x >= 0.8:
+        return "🟢 Adequado"
+
+    return "🟡 Ociosidade"
+
+
+df_cidade["situacao"] = df_cidade["aderencia"].apply(classificar_situacao)
+
+df_cidade = df_cidade[
+    df_cidade["situacao"].isin(situacoes_sel)
+]
+
+df_cidade = df_cidade.sort_values(
+    "aderencia",
+    ascending=False
+)
+
+st.dataframe(
+    df_cidade,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "regional_nome": "Regional",
+
+        "cidade": "Cidade",
+
+        "volumetria": st.column_config.NumberColumn(
+            "Volumetria",
+            format="%.0f"
+        ),
+
+        "demanda": st.column_config.NumberColumn(
+            "Demanda",
+            format="%.0f"
+        ),
+
+        "limite_80": st.column_config.NumberColumn(
+            "Limite 80%",
+            format="%.0f"
+        ),
+
+        "limite_120": st.column_config.NumberColumn(
+            "Limite 120%",
+            format="%.0f"
+        ),
+
+        "aderencia_pct": st.column_config.NumberColumn(
+            "Aderência %",
+            format="%.1f"
+        ),
+
+        "gap": st.column_config.NumberColumn(
+            "Gap",
+            format="%.0f"
+        ),
+
+        "situacao": "Situação",
+
+        "diagnostico": "Diagnóstico"
+    }
 )
 
 st.subheader("Análise de UPS por cidade")
@@ -434,70 +503,5 @@ st.dataframe(
 
         "nota_ups": "Nota UPS",
         "situacao_ups": "Situação UPS"
-    }
-)
-
-def classificar_situacao(x):
-    if pd.isna(x):
-        return "⚪ Sem volumetria"
-
-    if x > 1.2:
-        return "🔴 Subdimensionado"
-
-    if x >= 0.8:
-        return "🟢 Adequado"
-
-    return "🟡 Ociosidade"
-
-
-df_cidade["situacao"] = df_cidade["aderencia"].apply(classificar_situacao)
-
-df_cidade = df_cidade.sort_values(
-    "aderencia",
-    ascending=False
-)
-
-st.dataframe(
-    df_cidade,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "regional_nome": "Regional",
-
-        "cidade": "Cidade",
-
-        "volumetria": st.column_config.NumberColumn(
-            "Volumetria",
-            format="%.0f"
-        ),
-
-        "demanda": st.column_config.NumberColumn(
-            "Demanda",
-            format="%.0f"
-        ),
-
-        "limite_80": st.column_config.NumberColumn(
-            "Limite 80%",
-            format="%.0f"
-        ),
-
-        "limite_120": st.column_config.NumberColumn(
-            "Limite 120%",
-            format="%.0f"
-        ),
-
-        "aderencia_pct": st.column_config.NumberColumn(
-            "Aderência %",
-            format="%.1f"
-        ),
-
-        "gap": st.column_config.NumberColumn(
-            "Gap",
-            format="%.0f"
-        ),
-
-        "situacao": "Situação",
-
-        "diagnostico": "Diagnóstico"
     }
 )
