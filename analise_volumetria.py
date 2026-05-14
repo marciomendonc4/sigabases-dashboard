@@ -23,7 +23,12 @@ MESES = {
 @st.cache_data
 def carregar_dados():
     df = pd.read_excel(ARQUIVO)
-    df.columns = df.columns.str.lower().str.strip()
+    df.columns = (
+        df.columns
+        .str.lower()
+        .str.strip()
+        .str.replace(" ", "_", regex=False)
+    )
 
     df["mes"] = df["mes"].astype(int)
     df["mes_label"] = df["mes"].map(MESES)
