@@ -393,8 +393,25 @@ with st.sidebar:
 
 limite_ups = meta_ups * (faixa_aceitacao / 100)
 
-df_ups_base = df_filtrado[
-    df_filtrado["dias_ativos"] >= min_dias_ativos
+df_ups_base = df_filtrado.copy()
+
+df_ups_base["dias_ativos"] = pd.to_numeric(
+    df_ups_base["DIAS_ATIVOS" if "DIAS_ATIVOS" in df_ups_base.columns else "dias_ativos"],
+    errors="coerce"
+).fillna(0)
+
+df_ups_base["ups"] = pd.to_numeric(
+    df_ups_base["UPS" if "UPS" in df_ups_base.columns else "ups"],
+    errors="coerce"
+).fillna(0)
+
+df_ups_base["qtd_equipe"] = pd.to_numeric(
+    df_ups_base["QTD_EQUIPE" if "QTD_EQUIPE" in df_ups_base.columns else "qtd_equipe"],
+    errors="coerce"
+).fillna(0)
+
+df_ups_base = df_ups_base[
+    df_ups_base["dias_ativos"] >= min_dias_ativos
 ].copy()
 
 df_ups_cidade = (
@@ -470,42 +487,13 @@ st.dataframe(
     column_config={
         "regional_nome": "Regional",
         "cidade": "Cidade",
-
-        "ups_total": st.column_config.NumberColumn(
-            "UPS Total",
-            format="%.0f"
-        ),
-
-        "dias_ativos_medio": st.column_config.NumberColumn(
-            "Dias ativos médios",
-            format="%.1f"
-        ),
-
-        "qtd_equipe": st.column_config.NumberColumn(
-            "Qtd. equipes",
-            format="%.1f"
-        ),
-
-        "ups_medio_dia": st.column_config.NumberColumn(
-            "UPS médio/dia",
-            format="%.1f"
-        ),
-
-        "ups_equipe_dia": st.column_config.NumberColumn(
-            "UPS/equipe/dia",
-            format="%.1f"
-        ),
-
-        "equipes_sustentadas": st.column_config.NumberColumn(
-            "Equipes sustentadas",
-            format="%.1f"
-        ),
-
-        "pct_meta": st.column_config.NumberColumn(
-            "% da meta",
-            format="%.1%"
-        ),
-
+        "ups_total": st.column_config.NumberColumn("UPS Total", format="%.0f"),
+        "dias_ativos_medio": st.column_config.NumberColumn("Dias ativos médios", format="%.1f"),
+        "qtd_equipe": st.column_config.NumberColumn("Qtd. equipes", format="%.1f"),
+        "ups_medio_dia": st.column_config.NumberColumn("UPS médio/dia", format="%.1f"),
+        "ups_equipe_dia": st.column_config.NumberColumn("UPS/equipe/dia", format="%.1f"),
+        "equipes_sustentadas": st.column_config.NumberColumn("Equipes sustentadas", format="%.1f"),
+        "pct_meta": st.column_config.NumberColumn("% da meta", format="%.1%"),
         "nota_ups": "Nota UPS",
         "situacao_ups": "Situação UPS"
     }
