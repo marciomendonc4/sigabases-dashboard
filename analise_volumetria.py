@@ -207,17 +207,49 @@ nomes_indicadores = {
 
 df_acum_plot["indicador"] = df_acum_plot["indicador"].map(nomes_indicadores)
 
-graf_acum = (
-    alt.Chart(df_acum_plot)
-    .mark_line(point=True, strokeDash=[6,4])
+linha_principal = (
+    alt.Chart(
+        df_acum_plot[
+            df_acum_plot["indicador"].isin([
+                "Volumetria acumulada",
+                "Demanda acumulada"
+            ])
+        ]
+    )
+    .mark_line(point=True, strokeWidth=3)
     .encode(
         x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
         y=alt.Y("valor:Q", title="Quantidade"),
         color=alt.Color("indicador:N", title="Indicador"),
-        tooltip=["mes_label", "indicador", alt.Tooltip("valor:Q", format=",.0f")]
+        tooltip=[
+            "mes_label",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
     )
-    .properties(height=420)
 )
+
+linha_limites = (
+    alt.Chart(
+        df_acum_plot[
+            df_acum_plot["indicador"].isin([
+                "Limite 80%",
+                "Limite 120%"
+            ])
+        ]
+    )
+    .mark_line(point=False, strokeDash=[6,4])
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values())),
+        y="valor:Q",
+        color="indicador:N"
+    )
+)
+
+graf_acum = (
+    linha_principal +
+    linha_limites
+).properties(height=420)
 
 st.altair_chart(graf_acum, use_container_width=True)
 
