@@ -47,7 +47,7 @@ def carregar_dados():
 
 df = carregar_dados()
 
-for col in [
+colunas_numericas = [
     "vol_mensal",
     "demanda_recebida_dpl",
     "demanda_recebida_eqtl",
@@ -59,8 +59,14 @@ for col in [
     "tme",
     "dias_ativos",
     "qtd_equipe"
-]:
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+]
+
+for col in colunas_numericas:
+    if col in df.columns:
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        ).fillna(0)
 
 st.title("Análise de Volumetria")
 st.caption("Comparativo entre volumetria contratual esperada e demanda recebida para execução.")
