@@ -47,6 +47,21 @@ def carregar_dados():
 
 df = carregar_dados()
 
+for col in [
+    "vol_mensal",
+    "demanda_recebida_dpl",
+    "demanda_recebida_eqtl",
+    "demanda_recebida_gere",
+    "preco",
+    "ups",
+    "tma",
+    "tmd",
+    "tme",
+    "dias_ativos",
+    "qtd_equipe"
+]:
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
 st.title("Análise de Volumetria")
 st.caption("Comparativo entre volumetria contratual esperada e demanda recebida para execução.")
 
@@ -149,7 +164,7 @@ df_acum_plot["indicador"] = df_acum_plot["indicador"].map(nomes_indicadores)
 
 graf_acum = (
     alt.Chart(df_acum_plot)
-    .mark_line(point=True)
+    .mark_line(point=True, strokeDash=[6,4])
     .encode(
         x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
         y=alt.Y("valor:Q", title="Quantidade"),
@@ -211,6 +226,21 @@ st.dataframe(
 
 st.subheader("Diagnóstico por cidade")
 
+situacoes_sel = st.multiselect(
+    "Situação",
+    [
+        "🔴 Subdimensionado",
+        "🟢 Adequado",
+        "🟡 Ociosidade",
+        "⚪ Sem volumetria"
+    ],
+    default=[
+        "🔴 Subdimensionado",
+        "🟢 Adequado",
+        "🟡 Ociosidade"
+    ]
+)
+
 df_cidade = (
     df_filtrado
     .groupby(["regional_nome", "cidade"], as_index=False)
@@ -219,6 +249,15 @@ df_cidade = (
         demanda=("demanda_selecionada", "sum")
     )
 )
+
+df_cidade = df_cidade[
+    df_cidade["situacao"].isin(situacoes_sel)
+]
+
+df_cidade = df_cidade[
+    (df_cidade["volumetria"] > 0) |
+    (df_cidade["demanda"] > 0)
+]
 
 df_cidade["limite_80"] = df_cidade["volumetria"] * 0.8
 df_cidade["limite_120"] = df_cidade["volumetria"] * 1.2
@@ -243,6 +282,153 @@ df_cidade["diagnostico"] = df_cidade.apply(
         if row["demanda"] <= row["limite_120"]
         else "Demanda acima da volumetria",
     axis=1
+)
+
+st.subheader("Análise de UPS por cidade")
+
+with st.sidebar:
+    st.divider()
+    st.header("Parâmetros UPS")
+
+    meta_ups = st.number_input(
+        "Meta UPS/equipe/dia",
+        min_value=1.0,
+        value=42.0,
+        step=1.0
+    )
+
+    faixa_aceitacao = st.slider(
+        "Faixa de aceitação (%)",
+        min_value=50,
+        max_value=120,
+        value=90
+    )
+
+    min_dias_ativos = st.slider(
+        "Mínimo de dias ativos",
+        min_value=1,
+        max_value=31,
+        value=10
+    )
+
+limite_ups = meta_ups * (faixa_aceitacao / 100)
+
+df_ups_base = df_filtrado[
+    df_filtrado["dias_ativos"] >= min_dias_ativos
+].copy()
+
+df_ups_cidade = (
+    df_ups_base
+    .groupby(["regional_nome", "cidade"], as_index=False)
+    .agg(
+        ups_total=("ups", "sum"),
+        dias_ativos_medio=("dias_ativos", "mean"),
+        qtd_equipe=("qtd_equipe", "mean")
+    )
+)
+
+df_ups_cidade["ups_medio_dia"] = (
+    df_ups_cidade["ups_total"] /
+    df_ups_cidade["dias_ativos_medio"].replace(0, pd.NA)
+)
+
+df_ups_cidade["ups_equipe_dia"] = (
+    df_ups_cidade["ups_medio_dia"] /
+    df_ups_cidade["qtd_equipe"].replace(0, pd.NA)
+)
+
+df_ups_cidade["equipes_sustentadas"] = (
+    df_ups_cidade["ups_medio_dia"] /
+    limite_ups
+)
+
+df_ups_cidade["pct_meta"] = (
+    df_ups_cidade["ups_equipe_dia"] /
+    meta_ups
+)
+
+df_ups_cidade["nota_ups"] = df_ups_cidade["pct_meta"].apply(
+    lambda x:
+        "A" if x >= 0.90 else
+        "B" if x >= 0.80 else
+        "C" if x >= 0.70 else
+        "D"
+)
+
+df_ups_cidade["situacao_ups"] = df_ups_cidade["ups_equipe_dia"].apply(
+    lambda x:
+        "🟢 Saudável" if x >= limite_ups else
+        "🔴 Abaixo do aceitável"
+)
+
+df_ups_cidade = df_ups_cidade.sort_values(
+    "ups_equipe_dia",
+    ascending=False
+)
+
+col_ups1, col_ups2, col_ups3 = st.columns(3)
+
+col_ups1.metric(
+    "UPS médio/equipe/dia",
+    f"{df_ups_cidade['ups_equipe_dia'].mean():.1f}"
+)
+
+col_ups2.metric(
+    "Meta considerada",
+    f"{meta_ups:.0f}"
+)
+
+col_ups3.metric(
+    "Limite aceitável",
+    f"{limite_ups:.1f}"
+)
+
+st.dataframe(
+    df_ups_cidade,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "regional_nome": "Regional",
+        "cidade": "Cidade",
+
+        "ups_total": st.column_config.NumberColumn(
+            "UPS Total",
+            format="%.0f"
+        ),
+
+        "dias_ativos_medio": st.column_config.NumberColumn(
+            "Dias ativos médios",
+            format="%.1f"
+        ),
+
+        "qtd_equipe": st.column_config.NumberColumn(
+            "Qtd. equipes",
+            format="%.1f"
+        ),
+
+        "ups_medio_dia": st.column_config.NumberColumn(
+            "UPS médio/dia",
+            format="%.1f"
+        ),
+
+        "ups_equipe_dia": st.column_config.NumberColumn(
+            "UPS/equipe/dia",
+            format="%.1f"
+        ),
+
+        "equipes_sustentadas": st.column_config.NumberColumn(
+            "Equipes sustentadas",
+            format="%.1f"
+        ),
+
+        "pct_meta": st.column_config.NumberColumn(
+            "% da meta",
+            format="%.1%"
+        ),
+
+        "nota_ups": "Nota UPS",
+        "situacao_ups": "Situação UPS"
+    }
 )
 
 def classificar_situacao(x):
