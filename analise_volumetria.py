@@ -130,6 +130,12 @@ with st.sidebar:
         default=sorted(df_filtro_regional["processo"].dropna().unique())
     )
 
+    servicos_sel = st.multiselect(
+        "Serviço",
+        options=sorted(df_filtro_regional["servico2"].dropna().unique()),
+        default=sorted(df_filtro_regional["servico2"].dropna().unique())
+    )
+
     fontes_demanda = st.multiselect(
         "Fonte da demanda",
         ["DPL", "EQTL", "GERE"],
@@ -139,7 +145,8 @@ with st.sidebar:
 df_filtrado = df[
     (df["regional_id"].isin(regionais_sel)) &
     (df["cidade"].isin(cidades_sel)) &
-    (df["processo"].isin(processos_sel))
+    (df["processo"].isin(processos_sel)) &
+    (df["servico2"].isin(servicos_sel))
 ].copy()
 
 df_filtrado["demanda_selecionada"] = 0
