@@ -21,8 +21,10 @@ MESES = {
 
 
 @st.cache_data
+@st.cache_data
 def carregar_dados():
     df = pd.read_excel(ARQUIVO)
+
     df.columns = (
         df.columns
         .str.lower()
@@ -38,14 +40,25 @@ def carregar_dados():
         lambda x: "Período Chuvoso" if x in [11, 12, 1, 2, 3, 4] else "Período Seco"
     )
 
-    for col in [
+    colunas_numericas = [
         "vol_mensal",
         "demanda_recebida_dpl",
         "demanda_recebida_eqtl",
         "demanda_recebida_gere",
-        "preco"
-    ]:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        "preco",
+        "ups",
+        "tma",
+        "tmd",
+        "tme",
+        "dias_ativos",
+        "qtd_equipe"
+    ]
+
+    for col in colunas_numericas:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        else:
+            df[col] = 0
 
     return df
 
