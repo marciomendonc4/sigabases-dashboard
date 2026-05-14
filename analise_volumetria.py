@@ -511,10 +511,14 @@ df_ups_cidade["pct_meta"] = (
     meta_ups
 )
 
+df_ups_cidade["pct_meta"] = pd.to_numeric(
+    df_ups_cidade["pct_meta"],
+    errors="coerce"
+).fillna(0)
+
 df_ups_cidade["pct_meta"] = (
     df_ups_cidade["pct_meta"] * 100
 ).round(2)
-
 
 def classificar_nota_ups(x):
     if pd.isna(x):
