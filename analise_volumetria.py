@@ -432,19 +432,22 @@ df_ups_cidade = (
     .groupby(["regional_nome", "cidade"], as_index=False)
     .agg(
         ups_total=("ups", "sum"),
-        dias_ativos_medio=("dias_ativos", "mean"),
-        qtd_equipe=("qtd_equipe", "mean")
+        qtd_equipe=("qtd_equipe", "mean"),
+        dias_ativos_medio=("dias_ativos", "mean")
     )
 )
 
-df_ups_cidade["ups_medio_dia"] = (
-    df_ups_cidade["ups_total"] /
+df_ups_cidade["ups_medio_mes"] = df_ups_cidade["ups_total"] / 12
+
+df_ups_cidade["ups_equipe_dia"] = (
+    df_ups_cidade["ups_medio_mes"] /
+    df_ups_cidade["qtd_equipe"].replace(0, pd.NA) /
     df_ups_cidade["dias_ativos_medio"].replace(0, pd.NA)
 )
 
-df_ups_cidade["ups_equipe_dia"] = (
-    df_ups_cidade["ups_medio_dia"] /
-    df_ups_cidade["qtd_equipe"].replace(0, pd.NA)
+df_ups_cidade["ups_medio_dia"] = (
+    df_ups_cidade["ups_medio_mes"] /
+    df_ups_cidade["dias_ativos_medio"].replace(0, pd.NA)
 )
 
 df_ups_cidade["equipes_sustentadas"] = (
