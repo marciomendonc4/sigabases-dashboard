@@ -253,7 +253,6 @@ graf_acum = (
 st.altair_chart(graf_acum, use_container_width=True)
 
 st.subheader("Demanda mensal vs Volumetria mensal")
-
 df_mensal_plot = df_mes.melt(
     id_vars=["mes", "mes_label", "periodo_climatico"],
     value_vars=["vol_mensal", "demanda_mensal"],
@@ -266,25 +265,32 @@ df_mensal_plot["indicador"] = df_mensal_plot["indicador"].map({
     "demanda_mensal": "Demanda mensal"
 })
 
-df_mensal_plot["mes_periodo"] = (
-    df_mensal_plot["mes_label"] + "\n" +
-    df_mensal_plot["periodo_climatico"].str.replace("Período ", "")
-)
-
-ordem_mes_periodo = (
-    df_mensal_plot
-    .drop_duplicates(["mes", "mes_periodo"])
-    .sort_values("mes")["mes_periodo"]
-    .tolist()
+df_mensal_plot["cor"] = df_mensal_plot.apply(
+    lambda row:
+        "Chuvoso"
+        if row["indicador"] == "Volumetria mensal"
+        and row["periodo_climatico"] == "Período Chuvoso"
+        else "Seco"
+        if row["indicador"] == "Volumetria mensal"
+        and row["periodo_climatico"] == "Período Seco"
+        else "Demanda",
+    axis=1
 )
 
 graf_mensal = (
     alt.Chart(df_mensal_plot)
     .mark_bar()
     .encode(
-        x=alt.X("mes_periodo:N", sort=ordem_mes_periodo, title="Mês / Período"),
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
         y=alt.Y("valor:Q", title="Quantidade"),
-        color=alt.Color("indicador:N", title="Indicador"),
+        color=alt.Color(
+            "cor:N",
+            title="Legenda",
+            scale=alt.Scale(
+                domain=["Demanda", "Chuvoso", "Seco"],
+                range=["#6BAED6", "#1F77B4", "#D62728"]
+            )
+        ),
         xOffset="indicador:N",
         tooltip=[
             "mes_label",
