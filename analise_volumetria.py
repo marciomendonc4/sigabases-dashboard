@@ -160,11 +160,10 @@ if "GERE" in fontes_demanda:
 
 df_mes = (
     df_filtrado
-    .groupby(["mes", "mes_label"], as_index=False)
+    .groupby(["mes", "mes_label", "periodo_climatico"], as_index=False)
     .agg(
         vol_mensal=("vol_mensal", "sum"),
         demanda_mensal=("demanda_selecionada", "sum"),
-        valor_volumetria=("vol_mensal", lambda x: 0),
     )
     .sort_values("mes")
 )
@@ -256,7 +255,7 @@ st.altair_chart(graf_acum, use_container_width=True)
 st.subheader("Demanda mensal vs Volumetria mensal")
 
 df_mensal_plot = df_mes.melt(
-    id_vars=["mes", "mes_label"],
+    id_vars=["mes", "mes_label", "periodo_climatico"],
     value_vars=["vol_mensal", "demanda_mensal"],
     var_name="indicador",
     value_name="valor"
@@ -273,9 +272,15 @@ graf_mensal = (
     .encode(
         x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
         y=alt.Y("valor:Q", title="Quantidade"),
-        color=alt.Color("indicador:N", title="Indicador"),
+        color=alt.Color("periodo_climatico:N", title="Período"),
         xOffset="indicador:N",
-        tooltip=["mes_label", "indicador", alt.Tooltip("valor:Q", format=",.0f")]
+        opacity=alt.Opacity("indicador:N", legend=alt.Legend(title="Indicador")),
+        tooltip=[
+            "mes_label",
+            "periodo_climatico",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
     )
     .properties(height=420)
 )
@@ -447,6 +452,12 @@ with st.sidebar:
         step=1.0
     )
 
+    periodos_ups_sel = st.multiselect(
+        "Período UPS",
+        ["Período Chuvoso", "Período Seco"],
+        default=["Período Chuvoso", "Período Seco"]
+    )
+
     faixa_aceitacao = st.slider(
         "Faixa de aceitação (%)",
         min_value=50,
@@ -457,7 +468,9 @@ with st.sidebar:
 limite_ups = meta_ups * (faixa_aceitacao / 100)
 
 
-df_ups_base = df_filtrado.copy()
+df_ups_base = df_filtrado[
+        df_filtrado["periodo_climatico"].isin(periodos_ups_sel)
+    ].copy()
 df_ups_base["dias_uteis"] = df_ups_base["mes"].map(DIAS_UTEIS_MES)
 
 df_equipes_atual = (
