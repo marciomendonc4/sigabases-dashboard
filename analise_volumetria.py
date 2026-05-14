@@ -19,6 +19,20 @@ MESES = {
     9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
 }
 
+DIAS_UTEIS_MES = {
+    1: 25,
+    2: 23,
+    3: 25,
+    4: 24,
+    5: 25,
+    6: 24,
+    7: 27,
+    8: 25,
+    9: 24,
+    10: 26,
+    11: 23,
+    12: 25
+}
 
 @st.cache_data
 @st.cache_data
@@ -377,6 +391,10 @@ st.dataframe(
     }
 )
 
+
+
+
+
 st.subheader("Análise de UPS por cidade")
 
 with st.sidebar:
@@ -399,53 +417,58 @@ with st.sidebar:
 
 limite_ups = meta_ups * (faixa_aceitacao / 100)
 
-DIAS_UTEIS_MES = {
-    1: 25,
-    2: 23,
-    3: 25,
-    4: 24,
-    5: 25,
-    6: 24,
-    7: 27,
-    8: 25,
-    9: 24,
-    10: 26,
-    11: 23,
-    12: 25
-}
 
 df_ups_base = df_filtrado.copy()
 df_ups_base["dias_uteis"] = df_ups_base["mes"].map(DIAS_UTEIS_MES)
+
+df_equipes_atual = (
+    df_ups_base[df_ups_base["mes"] == 4]
+    .groupby(["regional_nome", "cidade"], as_index=False)
+    .agg(
+        qtd_equipe_atual=("qtd_equipe", "mean")
+    )
+)
 
 df_ups_cidade = (
     df_ups_base
     .groupby(["regional_nome", "cidade"], as_index=False)
     .agg(
         ups_total=("ups", "sum"),
-        qtd_equipe=("qtd_equipe", "mean"),
         dias_uteis_medio=("dias_uteis", "mean")
     )
 )
 
-df_ups_cidade["ups_equipe_dia"] = (
-    (df_ups_cidade["ups_total"] / 12) /
-    df_ups_cidade["qtd_equipe"].replace(0, pd.NA) /
+df_ups_cidade = df_ups_cidade.merge(
+    df_equipes_atual,
+    on=["regional_nome", "cidade"],
+    how="left"
+)
+
+df_ups_cidade["ups_medio_mes"] = df_ups_cidade["ups_total"] / 12
+
+df_ups_cidade["ups_medio_dia"] = (
+    df_ups_cidade["ups_medio_mes"] /
     df_ups_cidade["dias_uteis_medio"].replace(0, pd.NA)
 )
 
 df_ups_cidade["equipes_sustentadas"] = (
-    (df_ups_cidade["ups_total"] / 12) /
-    df_ups_cidade["dias_uteis_medio"].replace(0, pd.NA) /
+    df_ups_cidade["ups_medio_dia"] /
     limite_ups
+)
+
+df_ups_cidade["ups_equipe_dia"] = (
+    df_ups_cidade["ups_medio_dia"] /
+    df_ups_cidade["qtd_equipe_atual"].replace(0, pd.NA)
 )
 
 df_ups_cidade["saldo_equipes"] = (
     df_ups_cidade["equipes_sustentadas"] -
-    df_ups_cidade["qtd_equipe"]
+    df_ups_cidade["qtd_equipe_atual"]
 )
 
 df_ups_cidade["pct_meta"] = (
-    df_ups_cidade["ups_equipe_dia"] / meta_ups
+    df_ups_cidade["ups_equipe_dia"] /
+    meta_ups
 )
 
 def classificar_nota_ups(x):
@@ -471,6 +494,10 @@ df_ups_cidade["situacao_ups"] = df_ups_cidade["ups_equipe_dia"].apply(classifica
 
 df_ups_cidade = df_ups_cidade.sort_values("saldo_equipes", ascending=False)
 
+nota_geral = classificar_nota_ups(
+    df_ups_cidade["ups_equipe_dia"].mean() / meta_ups
+)
+
 col_ups1, col_ups2, col_ups3, col_ups4 = st.columns(4)
 
 col_ups1.metric(
@@ -489,8 +516,8 @@ col_ups3.metric(
 )
 
 col_ups4.metric(
-    "Saldo total de equipes",
-    f"{df_ups_cidade['saldo_equipes'].sum():.1f}"
+    "Rank geral",
+    nota_geral
 )
 
 st.dataframe(
@@ -500,15 +527,27 @@ st.dataframe(
     column_config={
         "regional_nome": "Regional",
         "cidade": "Cidade",
-        "qtd_equipe": st.column_config.NumberColumn("Qtd. equipes", format="%.1f"),
+        "qtd_equipe_atual": st.column_config.NumberColumn("Equipes atuais", format="%.1f"),
         "dias_uteis_medio": st.column_config.NumberColumn("Dias úteis médios", format="%.1f"),
         "ups_equipe_dia": st.column_config.NumberColumn("UPS/equipe/dia", format="%.1f"),
         "equipes_sustentadas": st.column_config.NumberColumn("Equipes sustentadas", format="%.1f"),
         "saldo_equipes": st.column_config.NumberColumn("Saldo equipes", format="%.1f"),
-        "pct_meta": st.column_config.NumberColumn("% da meta", format="%.1%"),
+        "pct_meta": st.column_config.NumberColumn("% da meta", format="%.2%"),
         "nota_ups": "Nota UPS",
         "situacao_ups": "Situação UPS"
-    }
+    },
+    column_order=[
+        "regional_nome",
+        "cidade",
+        "qtd_equipe_atual",
+        "dias_uteis_medio",
+        "ups_equipe_dia",
+        "equipes_sustentadas",
+        "saldo_equipes",
+        "pct_meta",
+        "nota_ups",
+        "situacao_ups"
+    ]
 )
 
 st.subheader("Saldo de equipes por regional")
@@ -517,7 +556,7 @@ df_ups_regional = (
     df_ups_cidade
     .groupby("regional_nome", as_index=False)
     .agg(
-        equipes_atuais=("qtd_equipe", "sum"),
+        equipes_atuais=("qtd_equipe_atual", "sum"),
         equipes_sustentadas=("equipes_sustentadas", "sum"),
         saldo_equipes=("saldo_equipes", "sum")
     )
