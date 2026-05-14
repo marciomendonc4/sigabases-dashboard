@@ -266,15 +266,26 @@ df_mensal_plot["indicador"] = df_mensal_plot["indicador"].map({
     "demanda_mensal": "Demanda mensal"
 })
 
+df_mensal_plot["mes_periodo"] = (
+    df_mensal_plot["mes_label"] + "\n" +
+    df_mensal_plot["periodo_climatico"].str.replace("Período ", "")
+)
+
+ordem_mes_periodo = (
+    df_mensal_plot
+    .drop_duplicates(["mes", "mes_periodo"])
+    .sort_values("mes")["mes_periodo"]
+    .tolist()
+)
+
 graf_mensal = (
     alt.Chart(df_mensal_plot)
     .mark_bar()
     .encode(
-        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        x=alt.X("mes_periodo:N", sort=ordem_mes_periodo, title="Mês / Período"),
         y=alt.Y("valor:Q", title="Quantidade"),
-        color=alt.Color("periodo_climatico:N", title="Período"),
+        color=alt.Color("indicador:N", title="Indicador"),
         xOffset="indicador:N",
-        opacity=alt.Opacity("indicador:N", legend=alt.Legend(title="Indicador")),
         tooltip=[
             "mes_label",
             "periodo_climatico",
@@ -467,18 +478,18 @@ with st.sidebar:
 
 limite_ups = meta_ups * (faixa_aceitacao / 100)
 
-
 df_ups_base = df_filtrado[
-        df_filtrado["periodo_climatico"].isin(periodos_ups_sel)
-    ].copy()
+    df_filtrado["periodo_climatico"].isin(periodos_ups_sel)
+].copy()
+
 df_ups_base["dias_uteis"] = df_ups_base["mes"].map(DIAS_UTEIS_MES)
 
+qtd_meses_periodo = max(df_ups_base["mes"].nunique(), 1)
+
 df_equipes_atual = (
-    df_ups_base[df_ups_base["mes"] == 4]
+    df_filtrado[df_filtrado["mes"] == 4]
     .groupby(["regional_nome", "cidade"], as_index=False)
-    .agg(
-        qtd_equipe_atual=("qtd_equipe", "mean")
-    )
+    .agg(qtd_equipe_atual=("qtd_equipe", "mean"))
 )
 
 df_ups_cidade = (
@@ -490,14 +501,15 @@ df_ups_cidade = (
     )
 )
 
-
 df_ups_cidade = df_ups_cidade.merge(
     df_equipes_atual,
     on=["regional_nome", "cidade"],
     how="left"
 )
 
-df_ups_cidade["ups_medio_mes"] = df_ups_cidade["ups_total"] / 12
+df_ups_cidade["ups_medio_mes"] = (
+    df_ups_cidade["ups_total"] / qtd_meses_periodo
+)
 
 df_ups_cidade["ups_medio_dia"] = (
     df_ups_cidade["ups_medio_mes"] /
@@ -505,8 +517,7 @@ df_ups_cidade["ups_medio_dia"] = (
 )
 
 df_ups_cidade["equipes_sustentadas"] = (
-    df_ups_cidade["ups_medio_dia"] /
-    limite_ups
+    df_ups_cidade["ups_medio_dia"] / limite_ups
 )
 
 df_ups_cidade["ups_equipe_dia"] = (
@@ -520,8 +531,7 @@ df_ups_cidade["saldo_equipes"] = (
 )
 
 df_ups_cidade["pct_meta"] = (
-    df_ups_cidade["ups_equipe_dia"] /
-    meta_ups
+    df_ups_cidade["ups_equipe_dia"] / meta_ups
 )
 
 df_ups_cidade["pct_meta"] = pd.to_numeric(
