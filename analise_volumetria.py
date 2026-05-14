@@ -457,19 +457,29 @@ df_ups_cidade["pct_meta"] = (
     meta_ups
 )
 
-df_ups_cidade["nota_ups"] = df_ups_cidade["pct_meta"].apply(
-    lambda x:
-        "A" if x >= 0.90 else
-        "B" if x >= 0.80 else
-        "C" if x >= 0.70 else
-        "D"
-)
+def classificar_nota_ups(x):
+    if pd.isna(x):
+        return "Sem dados"
+    if x >= 0.90:
+        return "A"
+    if x >= 0.80:
+        return "B"
+    if x >= 0.70:
+        return "C"
+    return "D"
 
-df_ups_cidade["situacao_ups"] = df_ups_cidade["ups_equipe_dia"].apply(
-    lambda x:
-        "🟢 Saudável" if x >= limite_ups else
-        "🔴 Abaixo do aceitável"
-)
+
+def classificar_situacao_ups(x):
+    if pd.isna(x):
+        return "⚪ Sem dados"
+    if x >= limite_ups:
+        return "🟢 Saudável"
+    return "🔴 Abaixo do aceitável"
+
+
+df_ups_cidade["nota_ups"] = df_ups_cidade["pct_meta"].apply(classificar_nota_ups)
+
+df_ups_cidade["situacao_ups"] = df_ups_cidade["ups_equipe_dia"].apply(classificar_situacao_ups)
 
 df_ups_cidade = df_ups_cidade.sort_values(
     "ups_equipe_dia",
