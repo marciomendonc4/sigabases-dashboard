@@ -44,13 +44,25 @@ st.caption("Análise de onde a demanda e o esforço operacional das bases estão
 with st.sidebar:
     st.header("Filtros")
 
-    bases_sel = st.multiselect(
-        "Base / Sigla",
-        options=sorted(df["municipio_eqp"].dropna().unique()),
-        default=sorted(df["municipio_eqp"].dropna().unique())
+    regionais_sel = st.multiselect(
+        "Regional",
+        options=sorted(df["regional"].dropna().unique()),
+        default=sorted(df["regional"].dropna().unique())
     )
 
-    df_base = df[df["municipio_eqp"].isin(bases_sel)]
+    df_regional = df[
+        df["regional"].isin(regionais_sel)
+    ]
+
+    bases_sel = st.multiselect(
+        "Base / Sigla",
+        options=sorted(df_regional["municipio_eqp"].dropna().unique()),
+        default=sorted(df_regional["municipio_eqp"].dropna().unique())
+    )
+
+    df_base = df_regional[
+        df_regional["municipio_eqp"].isin(bases_sel)
+    ]
 
     processos_sel = st.multiselect(
         "Processo",
