@@ -6,6 +6,12 @@ st.set_page_config(page_title="Dispersão Operacional", layout="wide")
 
 ARQUIVO = "ANALISE_VOLUMETRIA_BASE.xlsx"
 
+REGIONAIS = {
+    6: "SUL MA",
+    18: "LESTE MA",
+    25: "NORTE MA",
+    31: "NOROESTE MA"
+}
 
 @st.cache_data
 def carregar_dados():
@@ -47,7 +53,8 @@ with st.sidebar:
     regionais_sel = st.multiselect(
         "Regional",
         options=sorted(df["regional"].dropna().unique()),
-        default=sorted(df["regional"].dropna().unique())
+        default=sorted(df["regional"].dropna().unique()),
+        format_func=lambda x: REGIONAIS.get(x, str(x))
     )
 
     df_regional = df[
@@ -77,6 +84,7 @@ with st.sidebar:
     )
 
 df_filtrado = df[
+    (df["regional"].isin(regionais_sel)) &
     (df["municipio_eqp"].isin(bases_sel)) &
     (df["processo"].isin(processos_sel))
 ].copy()
