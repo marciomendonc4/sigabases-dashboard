@@ -53,7 +53,8 @@ def carregar_dados():
     df["periodo_climatico"] = df["mes"].apply(
         lambda x: "Período Chuvoso" if x in [11, 12, 1, 2, 3, 4] else "Período Seco"
     )
-
+    for col in colunas_numericas:
+        print(1)
     colunas_numericas = [
         "vol_mensal",
         "demanda_recebida_dpl",
@@ -124,7 +125,7 @@ with st.sidebar:
         default=sorted(df_filtro_regional["cidade"].dropna().unique())
     )
 
-        df_filtro_cidade = df_filtro_regional[
+    df_filtro_cidade = df_filtro_regional[
         df_filtro_regional["cidade"].isin(cidades_sel)
     ]
 
