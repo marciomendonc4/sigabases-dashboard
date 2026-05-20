@@ -53,8 +53,7 @@ def carregar_dados():
     df["periodo_climatico"] = df["mes"].apply(
         lambda x: "Período Chuvoso" if x in [11, 12, 1, 2, 3, 4] else "Período Seco"
     )
-    for col in colunas_numericas:
-        print(1)
+
     colunas_numericas = [
         "vol_mensal",
         "demanda_recebida_dpl",
