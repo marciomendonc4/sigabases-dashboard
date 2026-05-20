@@ -48,7 +48,7 @@ def carregar_dados():
         "demanda_recebida_gere",
         "demanda_recebida_dpl",
         "ups",
-        "tme",
+        #"tme",
         "tmd",
         "ups_eqtl",
         "ups_gere",
@@ -173,7 +173,7 @@ df_analise = (
     .agg(
         demanda=("demanda_selecionada", "sum"),
         ups=("ups_selecionada", "sum"),
-        tme=("tme", "sum")
+        tmd=("tmd", "sum")
     )
 )
 
