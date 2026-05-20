@@ -6,6 +6,24 @@ st.set_page_config(page_title="Dispersão Operacional", layout="wide")
 
 ARQUIVO = "ANALISE_VOLUMETRIA_BASE.xlsx"
 
+TMD_REFERENCIA = {
+    (25, "PLANTÃO"): 25,
+    (25, "LN"): 20,
+    (25, "CORTE"): 9,
+
+    (31, "PLANTÃO"): 25,
+    (31, "LN"): 20,
+    (31, "CORTE"): 9,
+
+    (6, "CORTE"): 10,
+    (6, "LN"): 23,
+    (6, "PLANTÃO"): 29,
+
+    (18, "CORTE"): 10,
+    (18, "LN"): 25,
+    (18, "PLANTÃO"): 29,
+}
+
 REGIONAIS = {
     6: "SUL MA",
     18: "LESTE MA",
@@ -89,6 +107,8 @@ df_filtrado = df[
     (df["processo"].isin(processos_sel))
 ].copy()
 
+
+
 df_filtrado["demanda_selecionada"] = 0
 df_filtrado["ups_selecionada"] = 0
 
@@ -103,6 +123,51 @@ if "EQTL" in fontes_sel:
 if "GERE" in fontes_sel:
     df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_gere"]
     df_filtrado["ups_selecionada"] += df_filtrado["ups_gere"]
+
+df_filtrado["tmd_esperado"] = df_filtrado.apply(
+    lambda row: TMD_REFERENCIA.get(
+        (row["regional"], row["processo"]),
+        pd.NA
+    ),
+    axis=1
+)
+
+
+df_tmd = (
+    df_filtrado
+    .groupby(["municipio_eqp", "processo"], as_index=False)
+    .agg(
+        demanda=("demanda_selecionada", "sum"),
+        tmd_executado=("tmd", "sum"),
+        tmd_esperado=("tmd_esperado", "mean")
+    )
+)
+
+df_tmd["tmd_executado_medio"] = (
+    df_tmd["tmd_executado"] /
+    df_tmd["demanda"].replace(0, pd.NA)
+)
+
+df_tmd["gap_tmd"] = (
+    df_tmd["tmd_executado_medio"] -
+    df_tmd["tmd_esperado"]
+)
+
+tmd_exec_medio = (
+    df_tmd["tmd_executado_medio"]
+    .mean()
+)
+
+tmd_esp_medio = (
+    (
+        df_tmd["tmd_esperado"] *
+        df_tmd["demanda"]
+    ).sum()
+    /
+    df_tmd["demanda"].sum()
+)
+
+gap_tmd = tmd_exec_medio - tmd_esp_medio
 
 
 df_analise = (
@@ -204,6 +269,26 @@ graf_ups = (
 
 st.altair_chart(graf_ups, use_container_width=True)
 
+st.subheader("TMD")
+
+col_tmd1, col_tmd2, col_tmd3 = st.columns(3)
+
+col_tmd1.metric(
+    "TMD executado médio",
+    f"{tmd_exec_medio:.1f}"
+)
+
+col_tmd2.metric(
+    "TMD esperado médio",
+    f"{tmd_esp_medio:.1f}"
+)
+
+col_tmd3.metric(
+    "Gap TMD",
+    f"{gap_tmd:+.1f}"
+)
+
+"""
 st.subheader("Tabela de dispersão")
 
 df_tabela = df_analise.copy()
@@ -242,3 +327,4 @@ st.dataframe(
         "fora_base"
     ]
 )
+"""
