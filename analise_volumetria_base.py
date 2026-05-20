@@ -43,11 +43,13 @@ def carregar_dados():
     )
 
     colunas_num = [
+        "regional",
         "demanda_recebida_eqtl",
         "demanda_recebida_gere",
         "demanda_recebida_dpl",
         "ups",
         "tme",
+        "tmd",
         "ups_eqtl",
         "ups_gere",
         "ups_dpl"
@@ -126,45 +128,40 @@ if "GERE" in fontes_sel:
 
 df_filtrado["tmd_esperado"] = df_filtrado.apply(
     lambda row: TMD_REFERENCIA.get(
-        (row["regional"], row["processo"]),
+        (int(row["regional"]), row["processo"]),
         pd.NA
     ),
     axis=1
 )
 
-
 df_tmd = (
     df_filtrado
-    .groupby(["municipio_eqp", "processo"], as_index=False)
+    .groupby(["regional", "municipio_eqp", "processo"], as_index=False)
     .agg(
         demanda=("demanda_selecionada", "sum"),
-        tmd_executado=("tmd", "sum"),
+        tmd_total=("tmd", "sum"),
         tmd_esperado=("tmd_esperado", "mean")
     )
 )
 
+df_tmd = df_tmd[df_tmd["demanda"] > 0].copy()
+
 df_tmd["tmd_executado_medio"] = (
-    df_tmd["tmd_executado"] /
-    df_tmd["demanda"].replace(0, pd.NA)
+    df_tmd["tmd_total"] / df_tmd["demanda"]
 )
 
 df_tmd["gap_tmd"] = (
-    df_tmd["tmd_executado_medio"] -
-    df_tmd["tmd_esperado"]
+    df_tmd["tmd_executado_medio"] - df_tmd["tmd_esperado"]
 )
 
 tmd_exec_medio = (
-    df_tmd["tmd_executado_medio"]
-    .mean()
+    df_tmd["tmd_total"].sum() / df_tmd["demanda"].sum()
+    if df_tmd["demanda"].sum() > 0 else 0
 )
 
 tmd_esp_medio = (
-    (
-        df_tmd["tmd_esperado"] *
-        df_tmd["demanda"]
-    ).sum()
-    /
-    df_tmd["demanda"].sum()
+    (df_tmd["tmd_esperado"] * df_tmd["demanda"]).sum() / df_tmd["demanda"].sum()
+    if df_tmd["demanda"].sum() > 0 else 0
 )
 
 gap_tmd = tmd_exec_medio - tmd_esp_medio
@@ -273,19 +270,24 @@ st.subheader("TMD")
 
 col_tmd1, col_tmd2, col_tmd3 = st.columns(3)
 
-col_tmd1.metric(
-    "TMD executado médio",
-    f"{tmd_exec_medio:.1f}"
-)
+col_tmd1.metric("TMD executado médio", f"{tmd_exec_medio:.1f}")
+col_tmd2.metric("TMD esperado médio", f"{tmd_esp_medio:.1f}")
+col_tmd3.metric("Gap TMD", f"{gap_tmd:+.1f}")
 
-col_tmd2.metric(
-    "TMD esperado médio",
-    f"{tmd_esp_medio:.1f}"
-)
-
-col_tmd3.metric(
-    "Gap TMD",
-    f"{gap_tmd:+.1f}"
+st.dataframe(
+    df_tmd.sort_values("gap_tmd", ascending=False),
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "regional": "Regional",
+        "municipio_eqp": "Base / Sigla",
+        "processo": "Processo",
+        "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
+        "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
+        "tmd_executado_medio": st.column_config.NumberColumn("TMD executado médio", format="%.1f"),
+        "tmd_esperado": st.column_config.NumberColumn("TMD esperado", format="%.1f"),
+        "gap_tmd": st.column_config.NumberColumn("Gap TMD", format="%+.1f"),
+    }
 )
 
 """
