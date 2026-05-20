@@ -124,7 +124,7 @@ with st.sidebar:
         default=sorted(df_filtro_regional["cidade"].dropna().unique())
     )
 
-    df_filtro_cidade = df_filtro_regional[
+        df_filtro_cidade = df_filtro_regional[
         df_filtro_regional["cidade"].isin(cidades_sel)
     ]
 
