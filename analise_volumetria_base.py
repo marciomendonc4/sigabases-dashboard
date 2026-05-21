@@ -409,10 +409,9 @@ else:
     )
 
     deck =  pdk.Deck(
-        map_style="mapbox://styles/mapbox/light-v9",
-        layers=[layer],
-        initial_view_state=view_state,
-        tooltip={
+            layers=[layer],
+            initial_view_state=view_state,
+            tooltip={
             "text": (
                 "Cidade: {municipio_vol}\n"
                 "Base: {municipio_eqp}\n"
