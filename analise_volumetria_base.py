@@ -222,7 +222,7 @@ col4.metric("Cidades atendidas", qtd_cidades)
 
 st.divider()
 
-st.subheader("Distribuição da demanda por cidade executada")
+st.subheader("Distribuição da demanda por cidades atendidas")
 
 graf_demanda = (
     alt.Chart(df_analise)
@@ -230,7 +230,7 @@ graf_demanda = (
     .encode(
         y=alt.Y("municipio_eqp:N", title="Base / Sigla"),
         x=alt.X("sum(demanda):Q", stack="normalize", title="% da demanda"),
-        color=alt.Color("municipio_vol:N", title="Cidade executada"),
+        color=alt.Color("municipio_vol:N", title="Cidades atendidas"),
         tooltip=[
             "municipio_eqp",
             "processo",
@@ -244,7 +244,7 @@ graf_demanda = (
 
 st.altair_chart(graf_demanda, use_container_width=True)
 
-st.subheader("Distribuição da UPS por cidade executada")
+st.subheader("Distribuição da UPS por Cidades atendidas")
 
 graf_ups = (
     alt.Chart(df_analise)
@@ -252,7 +252,7 @@ graf_ups = (
     .encode(
         y=alt.Y("municipio_eqp:N", title="Base / Sigla"),
         x=alt.X("sum(ups):Q", stack="normalize", title="% da UPS"),
-        color=alt.Color("municipio_vol:N", title="Cidade executada"),
+        color=alt.Color("municipio_vol:N", title="Cidades atendidas"),
         tooltip=[
             "municipio_eqp",
             "processo",
@@ -349,7 +349,7 @@ st.dataframe(
     column_config={
         "municipio_eqp": "Base / Sigla",
         "processo": "Processo",
-        "municipio_vol": "Cidade executada",
+        "municipio_vol": "Cidades atendidas",
         "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
         "ups": st.column_config.NumberColumn("UPS", format="%.1f"),
         "tme": st.column_config.NumberColumn("TME", format="%.1f"),
