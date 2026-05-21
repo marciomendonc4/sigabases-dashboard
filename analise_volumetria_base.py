@@ -388,6 +388,16 @@ df_mapa = df_mapa[
     (df_mapa[coluna_peso] > 0)
 ].copy()
 
+limite_pontos = st.slider(
+    "Limite de pontos no mapa",
+    min_value=1000,
+    max_value=50000,
+    value=5000,
+    step=1000
+)
+
+df_mapa = df_mapa.nlargest(limite_pontos, coluna_peso)
+
 if df_mapa.empty:
     st.warning("Sem info.")
 else:
@@ -403,9 +413,9 @@ else:
         data=df_mapa,
         get_position="[lon_grid, lat_grid]",
         get_weight=coluna_peso,
-        radiusPixels=45,
-        intensity=1,
-        threshold=0.05
+        radiusPixels=30,
+        intensity=0.7,
+        threshold=0.1
     )
 
     deck =  pdk.Deck(
