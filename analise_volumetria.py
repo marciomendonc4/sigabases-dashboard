@@ -275,6 +275,27 @@ df_mensal_plot = df_mes.melt(
     value_name="valor"
 )
 
+df_tmd_cidade = (
+    df_filtrado
+    .groupby(["regional_nome", "cidade"], as_index=False)
+    .agg(
+        demanda=("demanda_selecionada", "sum"),
+        tmd_total=("tmd", "sum"),
+        tma_total=("tma", "sum"),
+        tme_total=("tme", "sum")
+    )
+)
+
+df_tmd_cidade["tmd_por_demanda"] = (
+    df_tmd_cidade["tmd_total"] /
+    df_tmd_cidade["demanda"].replace(0, pd.NA)
+)
+
+df_tmd_cidade["pct_tmd_tma"] = (
+    df_tmd_cidade["tmd_total"] /
+    df_tmd_cidade["tma_total"].replace(0, pd.NA)
+)
+
 df_mensal_plot["indicador"] = df_mensal_plot["indicador"].map({
     "vol_mensal": "Volumetria mensal",
     "demanda_mensal": "Demanda mensal"
@@ -343,15 +364,15 @@ st.subheader("Diagnóstico por cidade")
 situacoes_sel = st.multiselect(
     "Situação",
     [
-        "🔴 Subdimensionado",
-        "🟢 Adequado",
-        "🟡 Ociosidade",
+        "🔴 Alta demanda",
+        "🟢 Demanda adequada",
+        "🟡 Baixa demanda",
         "⚪ Sem volumetria"
     ],
     default=[
-        "🔴 Subdimensionado",
-        "🟢 Adequado",
-        "🟡 Ociosidade"
+        "🔴 Alta demanda",
+        "🟢 Demanda adequada",
+        "🟡 Baixa demanda"
     ]
 )
 
@@ -667,5 +688,49 @@ st.dataframe(
         "equipes_atuais": st.column_config.NumberColumn("Equipes atuais", format="%.1f"),
         "equipes_sustentadas": st.column_config.NumberColumn("Equipes sustentadas", format="%.1f"),
         "saldo_equipes": st.column_config.NumberColumn("Saldo de equipes", format="%.1f")
+    }
+)
+
+st.subheader("tmd por cidade")
+
+df_tmd_cidade = (
+    df_filtrado
+    .groupby(["regional_nome", "cidade"], as_index=False)
+    .agg(
+        demanda=("demanda_selecionada", "sum"),
+        tmd_total=("tmd", "sum"),
+        tma_total=("tma", "sum"),
+        tme_total=("tme", "sum")
+    )
+)
+
+df_tmd_cidade["tmd_por_demanda"] = (
+    df_tmd_cidade["tmd_total"] /
+    df_tmd_cidade["demanda"].replace(0, pd.NA)
+)
+
+df_tmd_cidade["pct_tmd_tma"] = (
+    df_tmd_cidade["tmd_total"] /
+    df_tmd_cidade["tma_total"].replace(0, pd.NA)
+)
+
+df_tmd_cidade = df_tmd_cidade.sort_values(
+    "pct_tmd_tma",
+    ascending=False
+)
+
+st.dataframe(
+    df_tmd_cidade,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "regional_nome": "Regional",
+        "cidade": "Cidade",
+        "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
+        "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
+        "tma_total": st.column_config.NumberColumn("TMA total", format="%.0f"),
+        "tme_total": st.column_config.NumberColumn("TME total", format="%.0f"),
+        "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
+        "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
     }
 )
