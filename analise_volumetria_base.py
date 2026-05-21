@@ -372,7 +372,7 @@ df_mapa["peso_gap_tmd"] = df_mapa["gap_tmd"].clip(lower=0)
 
 tipo_mapa = st.selectbox(
     "Indicador do mapa",
-    ["Demanda", "UPS", "TMD médio", "Gap TMD"]
+    ["Demanda", "UPS", "TMD", "Variação TMD"]
 )
 
 coluna_peso = {
@@ -408,8 +408,7 @@ else:
         threshold=0.05
     )
 
-    deck = pdk.Deck(
-        deck = pdk.Deck(
+    deck =  pdk.Deck(
         map_style="mapbox://styles/mapbox/light-v9",
         layers=[layer],
         initial_view_state=view_state,
