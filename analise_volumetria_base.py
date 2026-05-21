@@ -389,7 +389,7 @@ df_mapa = df_mapa[
 ].copy()
 
 if df_mapa.empty:
-    st.warning("Nenhum dado encontrado para os filtros selecionados.")
+    st.warning("Sem info.")
 else:
     view_state = pdk.ViewState(
         latitude=df_mapa["lat_grid"].mean(),
