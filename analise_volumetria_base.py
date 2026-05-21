@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import pydeck as pdk
 
 st.set_page_config(page_title="Dispersão Operacional", layout="wide")
 
 ARQUIVO = "ANALISE_VOLUMETRIA_BASE.xlsx"
+ARQUIVO_MAPA = "ANALISE_MAPA_VOLUMETRIA.parquet"
+
+
 
 TMD_REFERENCIA = {
     (25, "PLANTÃO"): 25,
@@ -56,6 +60,21 @@ def carregar_dados():
     ]
 
     for col in colunas_num:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    return df
+def carregar_mapa():
+    df = pd.read_parquet(ARQUIVO_MAPA)
+
+    df.columns = (
+        df.columns
+        .str.lower()
+        .str.strip()
+        .str.replace(" ", "_", regex=False)
+    )
+
+    for col in ["regional", "lat_grid", "lon_grid", "demanda", "ups", "tmd_total", "tmd_medio"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
@@ -329,44 +348,80 @@ st.dataframe(
     }
 )
 
+st.divider()
+st.subheader("Mapa de calor operacional")
 
-"""
-st.subheader("Tabela de dispersão")
+df_mapa = carregar_mapa()
 
-df_tabela = df_analise.copy()
-df_tabela["pct_demanda"] = df_tabela["pct_demanda"] * 100
-df_tabela["pct_ups"] = df_tabela["pct_ups"] * 100
+df_mapa = df_mapa[
+    (df_mapa["regional"].isin(regionais_sel)) &
+    (df_mapa["municipio_eqp"].isin(bases_sel)) &
+    (df_mapa["processo"].isin(processos_sel))
+].copy()
 
-df_tabela = df_tabela.sort_values(
-    ["municipio_eqp", "processo", "ups"],
-    ascending=[True, True, False]
+df_mapa["tmd_esperado"] = df_mapa.apply(
+    lambda row: TMD_REFERENCIA.get(
+        (int(row["regional"]), row["processo"]),
+        0
+    ),
+    axis=1
 )
 
-st.dataframe(
-    df_tabela,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "municipio_eqp": "Base / Sigla",
-        "processo": "Processo",
-        "municipio_vol": "Cidades atendidas",
-        "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
-        "ups": st.column_config.NumberColumn("UPS", format="%.1f"),
-        "tme": st.column_config.NumberColumn("TME", format="%.1f"),
-        "pct_demanda": st.column_config.NumberColumn("% Demanda", format="%.1f%%"),
-        "pct_ups": st.column_config.NumberColumn("% UPS", format="%.1f%%"),
-        "fora_base": "Fora da base"
-    },
-    column_order=[
-        "municipio_eqp",
-        "processo",
-        "municipio_vol",
-        "demanda",
-        "pct_demanda",
-        "ups",
-        "pct_ups",
-        "tme",
-        "fora_base"
-    ]
+df_mapa["gap_tmd"] = df_mapa["tmd_medio"] - df_mapa["tmd_esperado"]
+df_mapa["peso_gap_tmd"] = df_mapa["gap_tmd"].clip(lower=0)
+
+tipo_mapa = st.selectbox(
+    "Indicador do mapa",
+    ["Demanda", "UPS", "TMD médio", "Gap TMD"]
 )
-"""
+
+coluna_peso = {
+    "Demanda": "demanda",
+    "UPS": "ups",
+    "TMD médio": "tmd_medio",
+    "Gap TMD": "peso_gap_tmd"
+}[tipo_mapa]
+
+df_mapa = df_mapa[
+    (df_mapa["lat_grid"] != 0) &
+    (df_mapa["lon_grid"] != 0) &
+    (df_mapa[coluna_peso] > 0)
+].copy()
+
+if df_mapa.empty:
+    st.warning("Nenhum dado encontrado para os filtros selecionados.")
+else:
+    view_state = pdk.ViewState(
+        latitude=df_mapa["lat_grid"].mean(),
+        longitude=df_mapa["lon_grid"].mean(),
+        zoom=7,
+        pitch=0
+    )
+
+    layer = pdk.Layer(
+        "HeatmapLayer",
+        data=df_mapa,
+        get_position="[lon_grid, lat_grid]",
+        get_weight=coluna_peso,
+        radiusPixels=45,
+        intensity=1,
+        threshold=0.05
+    )
+
+    deck = pdk.Deck(
+        layers=[layer],
+        initial_view_state=view_state,
+        tooltip={
+            "text": (
+                "Cidade: {municipio_vol}\n"
+                "Base: {municipio_eqp}\n"
+                "Processo: {processo}\n"
+                "Demanda: {demanda}\n"
+                "UPS: {ups}\n"
+                "TMD médio: {tmd_medio}\n"
+                "Gap TMD: {gap_tmd}"
+            )
+        }
+    )
+
+    st.pydeck_chart(deck, use_container_width=True)
