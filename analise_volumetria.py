@@ -424,12 +424,12 @@ def classificar_situacao(x):
         return "⚪ Sem volumetria"
 
     if x > 1.2:
-        return "🔴 Subdimensionado"
+        return "🔴 Alta demanda"
 
     if x >= 0.8:
-        return "🟢 Adequado"
+        return "🟢 Demanda adequada"
 
-    return "🟡 Ociosidade"
+    return "🟡 Baixa demanda"
 
 
 df_cidade["situacao"] = df_cidade["aderencia"].apply(classificar_situacao)
