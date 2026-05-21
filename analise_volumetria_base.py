@@ -370,17 +370,20 @@ df_mapa["tmd_esperado"] = df_mapa.apply(
 df_mapa["gap_tmd"] = df_mapa["tmd_medio"] - df_mapa["tmd_esperado"]
 df_mapa["peso_gap_tmd"] = df_mapa["gap_tmd"].clip(lower=0)
 
+
 tipo_mapa = st.selectbox(
     "Indicador do mapa",
-    ["Demanda", "UPS", "TMD", "Variação TMD"]
+    ["Demanda", "UPS", "TMD médio", "Gap TMD"]
 )
 
-coluna_peso = {
+mapa_colunas = {
     "Demanda": "demanda",
     "UPS": "ups",
-    "TMD médio": "tmd_medio",
+    "TMD": "tmd_medio",
     "Gap TMD": "peso_gap_tmd"
-}[tipo_mapa]
+}
+
+coluna_peso = mapa_colunas[tipo_mapa]
 
 df_mapa = df_mapa[
     (df_mapa["lat_grid"] != 0) &
