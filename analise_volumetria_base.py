@@ -84,7 +84,6 @@ def carregar_mapa():
 df = carregar_dados()
 
 st.title("Dispersão Operacional por Base")
-st.caption("Análise de onde a demanda e o esforço operacional das bases estão sendo consumidos.")
 
 with st.sidebar:
     st.header("Filtros")
