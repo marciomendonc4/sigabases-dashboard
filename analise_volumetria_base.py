@@ -409,6 +409,8 @@ else:
     )
 
     deck = pdk.Deck(
+        deck = pdk.Deck(
+        map_style="mapbox://styles/mapbox/light-v9",
         layers=[layer],
         initial_view_state=view_state,
         tooltip={
