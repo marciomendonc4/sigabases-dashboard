@@ -8,3 +8,5 @@ numpy
 folium
 streamlit-folium
 altair
+pyarrow
+pydeck
