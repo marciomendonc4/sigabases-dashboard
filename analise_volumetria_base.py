@@ -244,14 +244,14 @@ graf_demanda = (
 
 st.altair_chart(graf_demanda, use_container_width=True)
 
-st.subheader("Distribuição do UPS por cidade executada")
+st.subheader("Distribuição da UPS por cidade executada")
 
 graf_ups = (
     alt.Chart(df_analise)
     .mark_bar()
     .encode(
         y=alt.Y("municipio_eqp:N", title="Base / Sigla"),
-        x=alt.X("sum(ups):Q", stack="normalize", title="% do UPS"),
+        x=alt.X("sum(ups):Q", stack="normalize", title="% da UPS"),
         color=alt.Color("municipio_vol:N", title="Cidade executada"),
         tooltip=[
             "municipio_eqp",
@@ -289,6 +289,46 @@ st.dataframe(
         "gap_tmd": st.column_config.NumberColumn("Gap TMD", format="%+.1f"),
     }
 )
+
+df_tmd_cidade = (
+    df_tmd
+    .groupby(["municipio_eqp"], as_index=False)
+    .apply(
+        lambda g: pd.Series({
+            "demanda_total": g["demanda"].sum(),
+            "tmd_executado_balanceado": (
+                (g["tmd_executado_medio"] * g["demanda"]).sum() / g["demanda"].sum()
+                if g["demanda"].sum() > 0 else pd.NA
+            ),
+            "tmd_esperado_balanceado": (
+                (g["tmd_esperado"] * g["demanda"]).sum() / g["demanda"].sum()
+                if g["demanda"].sum() > 0 else pd.NA
+            )
+        })
+    )
+    .reset_index(drop=True)
+)
+
+df_tmd_cidade["gap_tmd_balanceado"] = (
+    df_tmd_cidade["tmd_executado_balanceado"] -
+    df_tmd_cidade["tmd_esperado_balanceado"]
+)
+
+st.subheader("TMD balanceado por base")
+
+st.dataframe(
+    df_tmd_cidade.sort_values("gap_tmd_balanceado", ascending=False),
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "municipio_eqp": "Base / Sigla",
+        "demanda_total": st.column_config.NumberColumn("Demanda total", format="%.0f"),
+        "tmd_executado_balanceado": st.column_config.NumberColumn("TMD executado balanceado", format="%.1f"),
+        "tmd_esperado_balanceado": st.column_config.NumberColumn("TMD esperado balanceado", format="%.1f"),
+        "gap_tmd_balanceado": st.column_config.NumberColumn("Gap TMD balanceado", format="%+.1f"),
+    }
+)
+
 
 """
 st.subheader("Tabela de dispersão")
