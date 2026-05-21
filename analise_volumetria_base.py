@@ -373,14 +373,14 @@ df_mapa["peso_gap_tmd"] = df_mapa["gap_tmd"].clip(lower=0)
 
 tipo_mapa = st.selectbox(
     "Indicador do mapa",
-    ["Demanda", "UPS", "TMD médio", "Gap TMD"]
+    ["Demanda", "UPS", "TMD", "Variação TMD"]
 )
 
 mapa_colunas = {
     "Demanda": "demanda",
     "UPS": "ups",
     "TMD": "tmd_medio",
-    "Gap TMD": "peso_gap_tmd"
+    "Variação TMD": "peso_gap_tmd"
 }
 
 coluna_peso = mapa_colunas[tipo_mapa]
