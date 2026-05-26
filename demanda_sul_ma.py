@@ -9,15 +9,7 @@ st.set_page_config(
 
 st.title("Distribuição do Balde de Serviços")
 
-arquivo = st.file_uploader(
-    "Carregue o arquivo XLSX",
-    type=["xlsx"]
-)
-
-if arquivo is None:
-    st.stop()
-
-df = pd.read_excel(arquivo)
+df = pd.read_excel("demanda_sul.xlsx")
 
 df.columns = df.columns.str.strip()
 
