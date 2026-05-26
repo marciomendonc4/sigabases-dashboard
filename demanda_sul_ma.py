@@ -194,6 +194,53 @@ st.plotly_chart(
     use_container_width=True
 )
 
+
+
+dist_equipe = (
+    df_filtrado
+    .groupby(["equipe", "GRUPO_OS"], as_index=False)["QTD"]
+    .sum()
+)
+
+dist_equipe["TOTAL"] = (
+    dist_equipe
+    .groupby("equipe")["QTD"]
+    .transform("sum")
+)
+
+dist_equipe["PERC"] = (
+    dist_equipe["QTD"] /
+    dist_equipe["TOTAL"]
+)
+
+fig_equipe = px.bar(
+    dist_equipe,
+    x="equipe",
+    y="PERC",
+    color="GRUPO_OS",
+    text=dist_equipe["PERC"].map(lambda x: f"{x:.1%}")
+)
+
+fig_equipe.update_layout(
+    barmode="stack",
+    yaxis_tickformat=".0%",
+    xaxis_title=None,
+    yaxis_title="% do Balde",
+    legend_title="Grupo OS",
+    height=500
+)
+
+fig_equipe.update_traces(
+    textposition="inside"
+)
+
+st.subheader("Distribuição por Equipe")
+
+st.plotly_chart(
+    fig_equipe,
+    use_container_width=True
+)
+
 heatmap = (
     df_filtrado
     .pivot_table(
