@@ -314,7 +314,7 @@ tabela = tabela.sort_values(
     ascending=[True, True, False]
 )
 
-st.subheader("Tabela Detalhada")
+st.subheader("Tabela 1Detalhada")
 
 st.dataframe(
     tabela,
