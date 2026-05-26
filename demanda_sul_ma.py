@@ -59,6 +59,51 @@ if df_filtrado.empty:
 
 #st.divider()
 
+dist_base = (
+    df_filtrado
+    .groupby(["base", "GRUPO_OS"], as_index=False)["QTD"]
+    .sum()
+)
+
+dist_base["TOTAL"] = (
+    dist_base
+    .groupby("base")["QTD"]
+    .transform("sum")
+)
+
+dist_base["PERC"] = (
+    dist_base["QTD"] /
+    dist_base["TOTAL"]
+)
+
+fig_base = px.bar(
+    dist_base,
+    x="base",
+    y="PERC",
+    color="GRUPO_OS",
+    text=dist_base["PERC"].map(lambda x: f"{x:.1%}")
+)
+
+fig_base.update_layout(
+    barmode="stack",
+    yaxis_tickformat=".0%",
+    xaxis_title=None,
+    yaxis_title="% do Balde",
+    legend_title="Grupo OS",
+    height=500
+)
+
+fig_base.update_traces(
+    textposition="inside"
+)
+
+st.subheader("Distribuição por Base")
+
+st.plotly_chart(
+    fig_base,
+    use_container_width=True
+)
+
 dist_segmento = (
     df_filtrado
     .groupby(["SEGMENTO", "GRUPO_OS"], as_index=False)["QTD"]
