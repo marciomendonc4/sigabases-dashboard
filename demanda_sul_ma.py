@@ -7,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Distribuição do Balde de Serviços")
+st.title("Balde de Serviços")
 
 df = pd.read_excel("demanda_sul.xlsx")
 
@@ -47,17 +47,17 @@ if df_filtrado.empty:
     st.warning("Nenhum dado encontrado.")
     st.stop()
 
-total_servicos = int(df_filtrado["QTD"].sum())
-total_equipes = df_filtrado["equipe"].nunique()
-total_bases = df_filtrado["base"].nunique()
+#total_servicos = int(df_filtrado["QTD"].sum())
+#total_equipes = df_filtrado["equipe"].nunique()
+#total_bases = df_filtrado["base"].nunique()
+#
+#c1, c2, c3 = st.columns(3)
+#
+#c1.metric("Serviços", f"{total_servicos:,}".replace(",", "."))
+#c2.metric("Equipes", total_equipes)
+#c3.metric("Bases", total_bases)
 
-c1, c2, c3 = st.columns(3)
-
-c1.metric("Serviços", f"{total_servicos:,}".replace(",", "."))
-c2.metric("Equipes", total_equipes)
-c3.metric("Bases", total_bases)
-
-st.divider()
+#st.divider()
 
 dist_segmento = (
     df_filtrado
@@ -177,7 +177,7 @@ fig_heatmap.update_layout(
     yaxis_title="Tipo de Equipe"
 )
 
-st.subheader("Heatmap de Distribuição")
+st.subheader("Mapa de Calor")
 
 st.plotly_chart(
     fig_heatmap,
