@@ -127,13 +127,23 @@ with st.sidebar:
     )
 
     df_filtro_mes = df_filtro_regional[
-        df_filtro_regional["mes"].isin(meses_sel)
+    df_filtro_regional["mes"].isin(meses_sel)
+    ]
+
+    bases_sel = st.multiselect(
+        "Base",
+        options=sorted(df_filtro_mes["base"].dropna().unique()),
+        default=sorted(df_filtro_mes["base"].dropna().unique())
+    )
+
+    df_filtro_base = df_filtro_mes[
+        df_filtro_mes["base"].isin(bases_sel)
     ]
 
     cidades_sel = st.multiselect(
         "Cidade",
-        options=sorted(df_filtro_mes["cidade"].dropna().unique()),
-        default=sorted(df_filtro_mes["cidade"].dropna().unique())
+        options=sorted(df_filtro_base["cidade"].dropna().unique()),
+        default=sorted(df_filtro_base["cidade"].dropna().unique())
     )
 
     df_filtro_cidade = df_filtro_regional[
@@ -167,6 +177,7 @@ with st.sidebar:
 df_filtrado = df[
     (df["regional_id"].isin(regionais_sel)) &
     (df["mes"].isin(meses_sel)) &
+    (df["base"].isin(bases_sel)) &
     (df["cidade"].isin(cidades_sel)) &
     (df["processo"].isin(processos_sel)) &
     (df["servico2"].isin(servicos_sel))
