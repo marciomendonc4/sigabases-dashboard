@@ -260,6 +260,8 @@ demanda_total = df_mes["demanda_mensal"].sum()
 aderencia = demanda_total / vol_total if vol_total else 0
 gap = demanda_total - vol_total
 
+st.subheader("Análise volumetria")
+
 col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("Volumetria esperada", f"{vol_total:,.0f}".replace(",", "."))
