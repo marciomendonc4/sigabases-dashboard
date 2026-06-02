@@ -10,7 +10,8 @@ REGIONAIS = {
     6: "SUL MA",
     18: "LESTE MA",
     25: "NORTE MA",
-    31: "NOROESTE MA"
+    31: "NOROESTE MA",
+    30: "SUL PI"
 }
 
 MESES = {
@@ -118,15 +119,28 @@ with st.sidebar:
 
     df_filtro_regional = df[df["regional_id"].isin(regionais_sel)]
 
+    meses_sel = st.multiselect(
+        "Mês",
+        options=sorted(df["mes"].dropna().unique()),
+        default=sorted(df["mes"].dropna().unique()),
+        format_func=lambda x: MESES.get(int(x), str(x))
+    )
+
+    df_filtro_mes = df_filtro_regional[
+        df_filtro_regional["mes"].isin(meses_sel)
+    ]
+
     cidades_sel = st.multiselect(
         "Cidade",
-        options=sorted(df_filtro_regional["cidade"].dropna().unique()),
-        default=sorted(df_filtro_regional["cidade"].dropna().unique())
+        options=sorted(df_filtro_mes["cidade"].dropna().unique()),
+        default=sorted(df_filtro_mes["cidade"].dropna().unique())
     )
 
     df_filtro_cidade = df_filtro_regional[
         df_filtro_regional["cidade"].isin(cidades_sel)
     ]
+
+    
 
     processos_sel = st.multiselect(
         "Processo",
@@ -152,6 +166,7 @@ with st.sidebar:
 
 df_filtrado = df[
     (df["regional_id"].isin(regionais_sel)) &
+    (df["mes"].isin(meses_sel)) &
     (df["cidade"].isin(cidades_sel)) &
     (df["processo"].isin(processos_sel)) &
     (df["servico2"].isin(servicos_sel))
