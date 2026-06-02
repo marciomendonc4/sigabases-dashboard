@@ -204,6 +204,46 @@ df_mes["limite_80"] = df_mes["vol_acumulada"] * 0.8
 df_mes["limite_120"] = df_mes["vol_acumulada"] * 1.2
 df_mes["aderencia_acumulada"] = df_mes["demanda_acumulada"] / df_mes["vol_acumulada"].replace(0, pd.NA)
 
+#financeiro
+
+df_filtrado["valor_vol_mensal"] = (
+    df_filtrado["vol_mensal"] * df_filtrado["preco"]
+)
+
+df_filtrado["valor_demanda"] = (
+    df_filtrado["demanda_selecionada"] * df_filtrado["preco"]
+)
+
+df_fin_mes = (
+    df_filtrado
+    .groupby(["mes", "mes_label", "periodo_climatico"], as_index=False)
+    .agg(
+        financeiro_esperado=("valor_vol_mensal", "sum"),
+        financeiro_recebido=("valor_demanda", "sum")
+    )
+    .sort_values("mes")
+)
+
+df_fin_mes["financeiro_esperado_acum"] = df_fin_mes["financeiro_esperado"].cumsum()
+df_fin_mes["financeiro_recebido_acum"] = df_fin_mes["financeiro_recebido"].cumsum()
+df_fin_mes["limite_80_fin"] = df_fin_mes["financeiro_esperado_acum"] * 0.8
+df_fin_mes["limite_120_fin"] = df_fin_mes["financeiro_esperado_acum"] * 1.2
+
+fin_esperado_total = df_fin_mes["financeiro_esperado"].sum()
+fin_recebido_total = df_fin_mes["financeiro_recebido"].sum()
+aderencia_fin = fin_recebido_total / fin_esperado_total if fin_esperado_total else 0
+gap_fin = fin_recebido_total - fin_esperado_total
+
+st.subheader("Análise financeira")
+
+colf1, colf2, colf3, colf4 = st.columns(4)
+
+colf1.metric("Financeiro esperado", f"R$ {fin_esperado_total:,.0f}".replace(",", "."))
+colf2.metric("Financeiro recebido", f"R$ {fin_recebido_total:,.0f}".replace(",", "."))
+colf3.metric("Aderência financeira", f"{aderencia_fin:.1%}")
+colf4.metric("Gap financeiro", f"R$ {gap_fin:,.0f}".replace(",", "."))
+
+
 vol_total = df_mes["vol_mensal"].sum()
 demanda_total = df_mes["demanda_mensal"].sum()
 aderencia = demanda_total / vol_total if vol_total else 0
@@ -355,7 +395,113 @@ graf_mensal = (
 
 st.altair_chart(graf_mensal, use_container_width=True)
 
-st.subheader("Resumo por período climático")
+
+
+st.subheader("Financeiro acumulado esperado vs recebido")
+
+df_fin_acum_plot = df_fin_mes.melt(
+    id_vars=["mes", "mes_label"],
+    value_vars=[
+        "financeiro_esperado_acum",
+        "financeiro_recebido_acum",
+        "limite_80_fin",
+        "limite_120_fin"
+    ],
+    var_name="indicador",
+    value_name="valor"
+)
+
+df_fin_acum_plot["indicador"] = df_fin_acum_plot["indicador"].map({
+    "financeiro_esperado_acum": "Financeiro esperado acumulado",
+    "financeiro_recebido_acum": "Financeiro recebido acumulado",
+    "limite_80_fin": "Limite 80%",
+    "limite_120_fin": "Limite 120%"
+})
+
+linha_fin_principal = (
+    alt.Chart(
+        df_fin_acum_plot[
+            df_fin_acum_plot["indicador"].isin([
+                "Financeiro esperado acumulado",
+                "Financeiro recebido acumulado"
+            ])
+        ]
+    )
+    .mark_line(point=True, strokeWidth=3)
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="R$"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        tooltip=[
+            "mes_label",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
+    )
+)
+
+linha_fin_limites = (
+    alt.Chart(
+        df_fin_acum_plot[
+            df_fin_acum_plot["indicador"].isin([
+                "Limite 80%",
+                "Limite 120%"
+            ])
+        ]
+    )
+    .mark_line(point=False, strokeDash=[6, 4])
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values())),
+        y="valor:Q",
+        color="indicador:N"
+    )
+)
+
+graf_fin_acum = (
+    linha_fin_principal + linha_fin_limites
+).properties(height=420)
+
+st.altair_chart(graf_fin_acum, use_container_width=True)
+
+
+st.subheader("Financeiro mensal esperado vs recebido")
+
+df_fin_mensal_plot = df_fin_mes.melt(
+    id_vars=["mes", "mes_label", "periodo_climatico"],
+    value_vars=["financeiro_esperado", "financeiro_recebido"],
+    var_name="indicador",
+    value_name="valor"
+)
+
+df_fin_mensal_plot["indicador"] = df_fin_mensal_plot["indicador"].map({
+    "financeiro_esperado": "Financeiro esperado",
+    "financeiro_recebido": "Financeiro recebido"
+})
+
+graf_fin_mensal = (
+    alt.Chart(df_fin_mensal_plot)
+    .mark_bar()
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="R$"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        xOffset="indicador:N",
+        tooltip=[
+            "mes_label",
+            "periodo_climatico",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
+    )
+    .properties(height=420)
+)
+
+st.altair_chart(graf_fin_mensal, use_container_width=True)
+
+
+
+
+st.subheader("Resumo por período")
 
 df_periodo = (
     df_filtrado
