@@ -4,7 +4,7 @@ import altair as alt
 
 st.set_page_config(page_title="Análise de Volumetria", layout="wide")
 
-ARQUIVO = "ANALISE_VOLUMETRIA.xlsx"
+ARQUIVO = "ANALISE_VOLUMETRIA_SUL_PI.xlsx"
 
 REGIONAIS = {
     6: "SUL MA",
