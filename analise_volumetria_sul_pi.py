@@ -11,7 +11,9 @@ REGIONAIS = {
     18: "LESTE MA",
     25: "NORTE MA",
     31: "NOROESTE MA",
-    30: "SUL PI"
+    30: "SUL PI",
+    28: "METROP. PI",
+    29: "NORTE PI"
 }
 
 MESES = {
