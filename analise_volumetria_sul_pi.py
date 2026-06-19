@@ -1015,15 +1015,8 @@ bars = (
     alt.Chart(df_hist_resumo)
     .mark_bar()
     .encode(
-        x=alt.X(
-            "faixa_tempo_restante:N",
-            sort=ordem_faixas,
-            title="Tempo restante"
-        ),
-        y=alt.Y(
-            "atribuicoes:Q",
-            title="Atribuições"
-        ),
+        x=alt.X("faixa_tempo_restante:N", sort=ordem_faixas, title="Tempo restante"),
+        y=alt.Y("atribuicoes:Q", title="Atribuições", scale=alt.Scale(domainMax=df_hist_resumo["atribuicoes"].max() * 1.15)),
         tooltip=[
             "faixa_tempo_restante",
             alt.Tooltip("atribuicoes:Q", format=",.0f")
@@ -1034,24 +1027,18 @@ bars = (
 labels = (
     alt.Chart(df_hist_resumo)
     .mark_text(
-        dy=-10
+        align="center",
+        baseline="bottom",
+        dy=-5
     )
     .encode(
-        x=alt.X(
-            "faixa_tempo_restante:N",
-            sort=ordem_faixas
-        ),
-        y="atribuicoes:Q",
-        text=alt.Text(
-            "atribuicoes:Q",
-            format=",.0f"
-        )
+        x=alt.X("faixa_tempo_restante:N", sort=ordem_faixas),
+        y=alt.Y("atribuicoes:Q"),
+        text=alt.Text("atribuicoes:Q", format=",.0f")
     )
 )
 
-graf_hist = (
-    bars + labels
-).properties(height=420)
+graf_hist = (bars + labels).properties(height=420)
 
 st.altair_chart(graf_hist, use_container_width=True)
 
