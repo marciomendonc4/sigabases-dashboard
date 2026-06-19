@@ -1013,12 +1013,23 @@ ordem_faixas = [
     "Após fim do turno"
 ]
 
+max_atribuicoes = df_hist_resumo["atribuicoes"].max()
+
+if pd.isna(max_atribuicoes):
+    max_atribuicoes = 1
+
 bars = (
     alt.Chart(df_hist_resumo)
     .mark_bar()
     .encode(
         x=alt.X("faixa_tempo_restante:N", sort=ordem_faixas, title="Tempo restante"),
-        y=alt.Y("atribuicoes:Q", title="Atribuições", scale=alt.Scale(domainMax=df_hist_resumo["atribuicoes"].max() * 1.15)),
+        y=alt.Y(
+            "atribuicoes:Q",
+            title="Atribuições",
+            scale=alt.Scale(
+                domainMax=max_atribuicoes * 1.15
+            )
+        ),
         tooltip=[
             "faixa_tempo_restante",
             alt.Tooltip("atribuicoes:Q", format=",.0f")
