@@ -6,6 +6,8 @@ st.set_page_config(page_title="Análise de Volumetria", layout="wide")
 
 ARQUIVO = "ANALISE_VOLUMETRIA_SUL_PI.xlsx"
 
+ARQUIVO_HISTOGRAMA = "HISTOGRAMA_VOLUMETRIA.xlsx"
+
 REGIONAIS = {
     6: "SUL MA",
     18: "LESTE MA",
@@ -79,8 +81,26 @@ def carregar_dados():
 
     return df
 
+@st.cache_data
+def carregar_histograma():
+    df = pd.read_excel(ARQUIVO_HISTOGRAMA)
+
+    df.columns = (
+        df.columns
+        .str.lower()
+        .str.strip()
+        .str.replace(" ", "_", regex=False)
+    )
+
+    for col in ["mes", "regional_id", "atribuicoes"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    return df
 
 df = carregar_dados()
+
+df_hist = carregar_histograma()
 
 colunas_numericas = [
     "vol_mensal",
@@ -183,6 +203,24 @@ df_filtrado = df[
     (df["cidade"].isin(cidades_sel)) &
     (df["processo"].isin(processos_sel)) &
     (df["servico2"].isin(servicos_sel))
+].copy()
+
+df_hist_filtrado = df_hist[
+    (df_hist["regional_id"].isin(regionais_sel)) &
+    (df_hist["mes"].isin(meses_sel)) &
+    (df_hist["base"].isin(bases_sel)) &
+    (df_hist["cidade"].isin(cidades_sel)) &
+    (df_hist["processo"].isin(processos_sel))
+].copy()
+
+tipos_os_sel = st.multiselect(
+    "Tipo OS",
+    options=sorted(df_hist_filtrado["tipo_os"].dropna().unique()),
+    default=sorted(df_hist_filtrado["tipo_os"].dropna().unique())
+)
+
+df_hist_filtrado = df_hist_filtrado[
+    df_hist_filtrado["tipo_os"].isin(tipos_os_sel)
 ].copy()
 
 df_filtrado["demanda_selecionada"] = 0
@@ -909,4 +947,38 @@ st.dataframe(
         "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
         "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
     }
+)
+
+st.subheader("Distribuição das atribuições")
+
+st.caption(
+    "Tempo restante entre a atribuição da atividade e o fim do turno."
+)
+
+df_hist_resumo = (
+    df_hist_filtrado
+    .groupby("faixa_tempo_restante", as_index=False)
+    .agg(
+        atribuicoes=("atribuicoes", "sum")
+    )
+)
+
+ordem_faixas = [
+    ">4h",
+    "3h-4h",
+    "2h-3h",
+    "1h-2h",
+    "30m-1h",
+    "<30m",
+    "Após fim do turno"
+]
+
+df_hist_resumo["faixa_tempo_restante"] = pd.Categorical(
+    df_hist_resumo["faixa_tempo_restante"],
+    categories=ordem_faixas,
+    ordered=True
+)
+
+df_hist_resumo = df_hist_resumo.sort_values(
+    "faixa_tempo_restante"
 )
