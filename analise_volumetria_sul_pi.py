@@ -901,49 +901,51 @@ st.dataframe(
     }
 )
 
-st.subheader("tmd por cidade")
+if False: 
 
-df_tmd_cidade = (
-    df_filtrado
-    .groupby(["regional_nome", "cidade"], as_index=False)
-    .agg(
-        demanda=("demanda_selecionada", "sum"),
-        tmd_total=("tmd", "sum"),
-        tma_total=("tma", "sum"),
-        tme_total=("tme", "sum")
+    st.subheader("tmd por cidade")
+
+    df_tmd_cidade = (
+        df_filtrado
+        .groupby(["regional_nome", "cidade"], as_index=False)
+        .agg(
+            demanda=("demanda_selecionada", "sum"),
+            tmd_total=("tmd", "sum"),
+            tma_total=("tma", "sum"),
+            tme_total=("tme", "sum")
+        )
     )
-)
 
-df_tmd_cidade["tmd_por_demanda"] = (
-    df_tmd_cidade["tmd_total"] /
-    df_tmd_cidade["demanda"].replace(0, pd.NA)
-)
+    df_tmd_cidade["tmd_por_demanda"] = (
+        df_tmd_cidade["tmd_total"] /
+        df_tmd_cidade["demanda"].replace(0, pd.NA)
+    )
 
-df_tmd_cidade["pct_tmd_tma"] = (
-    df_tmd_cidade["tmd_total"] /
-    df_tmd_cidade["tma_total"].replace(0, pd.NA)
-)
+    df_tmd_cidade["pct_tmd_tma"] = (
+        df_tmd_cidade["tmd_total"] /
+        df_tmd_cidade["tma_total"].replace(0, pd.NA)
+    )
 
-df_tmd_cidade = df_tmd_cidade.sort_values(
-    "pct_tmd_tma",
-    ascending=False
-)
+    df_tmd_cidade = df_tmd_cidade.sort_values(
+        "pct_tmd_tma",
+        ascending=False
+    )
 
-st.dataframe(
-    df_tmd_cidade,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "regional_nome": "Regional",
-        "cidade": "Cidade",
-        "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
-        "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
-        "tma_total": st.column_config.NumberColumn("TMA total", format="%.0f"),
-        "tme_total": st.column_config.NumberColumn("TME total", format="%.0f"),
-        "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
-        "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
-    }
-)
+    st.dataframe(
+        df_tmd_cidade,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "regional_nome": "Regional",
+            "cidade": "Cidade",
+            "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
+            "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
+            "tma_total": st.column_config.NumberColumn("TMA total", format="%.0f"),
+            "tme_total": st.column_config.NumberColumn("TME total", format="%.0f"),
+            "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
+            "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
+        }
+    )
 
 st.subheader("Histograma de atribuições")
 
