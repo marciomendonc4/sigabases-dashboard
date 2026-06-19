@@ -987,6 +987,16 @@ colh1.metric("Total de atribuições", f"{total_atribuicoes:,.0f}".replace(",", 
 colh2.metric("Atribuições críticas", f"{criticas:,.0f}".replace(",", "."))
 colh3.metric("% críticas", f"{pct_criticas:.1%}")
 
+ordem_faixas = [
+    ">4h",
+    "3h-4h",
+    "2h-3h",
+    "1h-2h",
+    "30m-1h",
+    "<30m",
+    "Após fim do turno"
+]
+
 graf_hist = (
     alt.Chart(df_hist_resumo)
     .mark_bar()
@@ -1007,15 +1017,7 @@ graf_hist = (
 
 st.altair_chart(graf_hist, use_container_width=True)
 
-ordem_faixas = [
-    ">4h",
-    "3h-4h",
-    "2h-3h",
-    "1h-2h",
-    "30m-1h",
-    "<30m",
-    "Após fim do turno"
-]
+
 
 df_hist_resumo["faixa_tempo_restante"] = pd.Categorical(
     df_hist_resumo["faixa_tempo_restante"],
