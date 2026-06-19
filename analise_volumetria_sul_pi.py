@@ -168,8 +168,12 @@ with st.sidebar:
         default=sorted(df_filtro_base["cidade"].dropna().unique())
     )
 
-    df_filtro_cidade = df_filtro_regional[
-        df_filtro_regional["cidade"].isin(cidades_sel)
+    #df_filtro_cidade = df_filtro_regional[
+    #    df_filtro_regional["cidade"].isin(cidades_sel)
+    #]
+
+    df_filtro_cidade = df_filtro_base[
+    df_filtro_base["cidade"].isin(cidades_sel)
     ]
 
     
@@ -213,15 +217,7 @@ df_hist_filtrado = df_hist[
     (df_hist["processo"].isin(processos_sel))
 ].copy()
 
-tipos_os_sel = st.multiselect(
-    "Tipo OS",
-    options=sorted(df_hist_filtrado["tipo_os"].dropna().unique()),
-    default=sorted(df_hist_filtrado["tipo_os"].dropna().unique())
-)
 
-df_hist_filtrado = df_hist_filtrado[
-    df_hist_filtrado["tipo_os"].isin(tipos_os_sel)
-].copy()
 
 df_filtrado["demanda_selecionada"] = 0
 df_filtrado["ups_selecionada"] = 0
@@ -955,6 +951,16 @@ st.caption(
     "Tempo restante entre a atribuição da atividade e o fim do turno."
 )
 
+tipos_os_sel = st.multiselect(
+    "Tipo OS",
+    options=sorted(df_hist_filtrado["tipo_os"].dropna().unique()),
+    default=sorted(df_hist_filtrado["tipo_os"].dropna().unique())
+)
+
+df_hist_filtrado = df_hist_filtrado[
+    df_hist_filtrado["tipo_os"].isin(tipos_os_sel)
+].copy()
+
 df_hist_resumo = (
     df_hist_filtrado
     .groupby("faixa_tempo_restante", as_index=False)
@@ -962,6 +968,44 @@ df_hist_resumo = (
         atribuicoes=("atribuicoes", "sum")
     )
 )
+
+total_atribuicoes = df_hist_resumo["atribuicoes"].sum()
+
+criticas = df_hist_resumo[
+    df_hist_resumo["faixa_tempo_restante"].isin([
+        "30m-1h",
+        "<30m",
+        "Após fim do turno"
+    ])
+]["atribuicoes"].sum()
+
+pct_criticas = criticas / total_atribuicoes if total_atribuicoes else 0
+
+colh1, colh2, colh3 = st.columns(3)
+
+colh1.metric("Total de atribuições", f"{total_atribuicoes:,.0f}".replace(",", "."))
+colh2.metric("Atribuições críticas", f"{criticas:,.0f}".replace(",", "."))
+colh3.metric("% críticas", f"{pct_criticas:.1%}")
+
+graf_hist = (
+    alt.Chart(df_hist_resumo)
+    .mark_bar()
+    .encode(
+        x=alt.X(
+            "faixa_tempo_restante:N",
+            sort=ordem_faixas,
+            title="Tempo restante"
+        ),
+        y=alt.Y("atribuicoes:Q", title="Atribuições"),
+        tooltip=[
+            "faixa_tempo_restante",
+            alt.Tooltip("atribuicoes:Q", format=",.0f")
+        ]
+    )
+    .properties(height=420)
+)
+
+st.altair_chart(graf_hist, use_container_width=True)
 
 ordem_faixas = [
     ">4h",
