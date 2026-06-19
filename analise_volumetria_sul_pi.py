@@ -945,7 +945,7 @@ st.dataframe(
     }
 )
 
-st.subheader("Distribuição das atribuições")
+st.subheader("Histograma de atribuições")
 
 st.caption(
     "Tempo restante entre a atribuição da atividade e o fim do turno."
@@ -971,6 +971,11 @@ df_hist_resumo = (
 
 total_atribuicoes = df_hist_resumo["atribuicoes"].sum()
 
+atribuicoes_pos_turno = df_hist_resumo.loc[
+    df_hist_resumo["faixa_tempo_restante"] == "Após fim do turno",
+    "atribuicoes"
+].sum()
+
 criticas = df_hist_resumo[
     df_hist_resumo["faixa_tempo_restante"].isin([
         "30m-1h",
@@ -981,11 +986,20 @@ criticas = df_hist_resumo[
 
 pct_criticas = criticas / total_atribuicoes if total_atribuicoes else 0
 
-colh1, colh2, colh3 = st.columns(3)
+colh1, colh2, colh3, colh4 = st.columns(4)
 
 colh1.metric("Total de atribuições", f"{total_atribuicoes:,.0f}".replace(",", "."))
 colh2.metric("Atribuições críticas", f"{criticas:,.0f}".replace(",", "."))
-colh3.metric("% críticas", f"{pct_criticas:.1%}")
+colh3.metric(
+    "% críticas (<1h)",
+    f"{pct_criticas:.1%}"
+)
+
+
+colh4.metric(
+    "Após fim do turno",
+    f"{atribuicoes_pos_turno:,.0f}".replace(",", ".")
+)
 
 ordem_faixas = [
     ">4h",
@@ -997,7 +1011,7 @@ ordem_faixas = [
     "Após fim do turno"
 ]
 
-graf_hist = (
+bars = (
     alt.Chart(df_hist_resumo)
     .mark_bar()
     .encode(
@@ -1006,14 +1020,38 @@ graf_hist = (
             sort=ordem_faixas,
             title="Tempo restante"
         ),
-        y=alt.Y("atribuicoes:Q", title="Atribuições"),
+        y=alt.Y(
+            "atribuicoes:Q",
+            title="Atribuições"
+        ),
         tooltip=[
             "faixa_tempo_restante",
             alt.Tooltip("atribuicoes:Q", format=",.0f")
         ]
     )
-    .properties(height=420)
 )
+
+labels = (
+    alt.Chart(df_hist_resumo)
+    .mark_text(
+        dy=-10
+    )
+    .encode(
+        x=alt.X(
+            "faixa_tempo_restante:N",
+            sort=ordem_faixas
+        ),
+        y="atribuicoes:Q",
+        text=alt.Text(
+            "atribuicoes:Q",
+            format=",.0f"
+        )
+    )
+)
+
+graf_hist = (
+    bars + labels
+).properties(height=420)
 
 st.altair_chart(graf_hist, use_container_width=True)
 
