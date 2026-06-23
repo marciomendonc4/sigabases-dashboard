@@ -4,13 +4,18 @@ import altair as alt
 
 st.set_page_config(page_title="Análise de Volumetria", layout="wide")
 
-ARQUIVO = "ANALISE_VOLUMETRIA.xlsx"
+ARQUIVO = "ANALISE_VOLUMETRIA_SUL_PI.xlsx"
+
+ARQUIVO_HISTOGRAMA = "HISTOGRAMA_VOLUMETRIA.xlsx"
 
 REGIONAIS = {
     6: "SUL MA",
     18: "LESTE MA",
     25: "NORTE MA",
-    31: "NOROESTE MA"
+    31: "NOROESTE MA",
+    30: "SUL PI",
+    28: "METROP. PI",
+    29: "NORTE PI"
 }
 
 MESES = {
@@ -76,8 +81,26 @@ def carregar_dados():
 
     return df
 
+@st.cache_data
+def carregar_histograma():
+    df = pd.read_excel(ARQUIVO_HISTOGRAMA)
+
+    df.columns = (
+        df.columns
+        .str.lower()
+        .str.strip()
+        .str.replace(" ", "_", regex=False)
+    )
+
+    for col in ["mes", "regional_id", "atribuicoes"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    return df
 
 df = carregar_dados()
+
+df_hist = carregar_histograma()
 
 colunas_numericas = [
     "vol_mensal",
@@ -118,15 +141,42 @@ with st.sidebar:
 
     df_filtro_regional = df[df["regional_id"].isin(regionais_sel)]
 
-    cidades_sel = st.multiselect(
-        "Cidade",
-        options=sorted(df_filtro_regional["cidade"].dropna().unique()),
-        default=sorted(df_filtro_regional["cidade"].dropna().unique())
+    meses_sel = st.multiselect(
+        "Mês",
+        options=sorted(df["mes"].dropna().unique()),
+        default=sorted(df["mes"].dropna().unique()),
+        format_func=lambda x: MESES.get(int(x), str(x))
     )
 
-    df_filtro_cidade = df_filtro_regional[
-        df_filtro_regional["cidade"].isin(cidades_sel)
+    df_filtro_mes = df_filtro_regional[
+    df_filtro_regional["mes"].isin(meses_sel)
     ]
+
+    bases_sel = st.multiselect(
+        "Base",
+        options=sorted(df_filtro_mes["base"].dropna().unique()),
+        default=sorted(df_filtro_mes["base"].dropna().unique())
+    )
+
+    df_filtro_base = df_filtro_mes[
+        df_filtro_mes["base"].isin(bases_sel)
+    ]
+
+    cidades_sel = st.multiselect(
+        "Cidade",
+        options=sorted(df_filtro_base["cidade"].dropna().unique()),
+        default=sorted(df_filtro_base["cidade"].dropna().unique())
+    )
+
+    #df_filtro_cidade = df_filtro_regional[
+    #    df_filtro_regional["cidade"].isin(cidades_sel)
+    #]
+
+    df_filtro_cidade = df_filtro_base[
+    df_filtro_base["cidade"].isin(cidades_sel)
+    ]
+
+    
 
     processos_sel = st.multiselect(
         "Processo",
@@ -152,10 +202,22 @@ with st.sidebar:
 
 df_filtrado = df[
     (df["regional_id"].isin(regionais_sel)) &
+    (df["mes"].isin(meses_sel)) &
+    (df["base"].isin(bases_sel)) &
     (df["cidade"].isin(cidades_sel)) &
     (df["processo"].isin(processos_sel)) &
     (df["servico2"].isin(servicos_sel))
 ].copy()
+
+df_hist_filtrado = df_hist[
+    (df_hist["regional_id"].isin(regionais_sel)) &
+    (df_hist["mes"].isin(meses_sel)) &
+    (df_hist["base"].isin(bases_sel)) &
+    (df_hist["cidade"].isin(cidades_sel)) &
+    (df_hist["processo"].isin(processos_sel))
+].copy()
+
+
 
 df_filtrado["demanda_selecionada"] = 0
 df_filtrado["ups_selecionada"] = 0
@@ -189,10 +251,52 @@ df_mes["limite_80"] = df_mes["vol_acumulada"] * 0.8
 df_mes["limite_120"] = df_mes["vol_acumulada"] * 1.2
 df_mes["aderencia_acumulada"] = df_mes["demanda_acumulada"] / df_mes["vol_acumulada"].replace(0, pd.NA)
 
+#financeiro
+
+df_filtrado["valor_vol_mensal"] = (
+    df_filtrado["vol_mensal"] * df_filtrado["preco"]
+)
+
+df_filtrado["valor_demanda"] = (
+    df_filtrado["demanda_selecionada"] * df_filtrado["preco"]
+)
+
+df_fin_mes = (
+    df_filtrado
+    .groupby(["mes", "mes_label", "periodo_climatico"], as_index=False)
+    .agg(
+        financeiro_esperado=("valor_vol_mensal", "sum"),
+        financeiro_recebido=("valor_demanda", "sum")
+    )
+    .sort_values("mes")
+)
+
+df_fin_mes["financeiro_esperado_acum"] = df_fin_mes["financeiro_esperado"].cumsum()
+df_fin_mes["financeiro_recebido_acum"] = df_fin_mes["financeiro_recebido"].cumsum()
+df_fin_mes["limite_80_fin"] = df_fin_mes["financeiro_esperado_acum"] * 0.8
+df_fin_mes["limite_120_fin"] = df_fin_mes["financeiro_esperado_acum"] * 1.2
+
+fin_esperado_total = df_fin_mes["financeiro_esperado"].sum()
+fin_recebido_total = df_fin_mes["financeiro_recebido"].sum()
+aderencia_fin = fin_recebido_total / fin_esperado_total if fin_esperado_total else 0
+gap_fin = fin_recebido_total - fin_esperado_total
+
+st.subheader("Análise financeira")
+
+colf1, colf2, colf3, colf4 = st.columns(4)
+
+colf1.metric("Financeiro esperado", f"R$ {fin_esperado_total:,.0f}".replace(",", "."))
+colf2.metric("Financeiro recebido", f"R$ {fin_recebido_total:,.0f}".replace(",", "."))
+colf3.metric("Aderência financeira", f"{aderencia_fin:.1%}")
+colf4.metric("Gap financeiro", f"R$ {gap_fin:,.0f}".replace(",", "."))
+
+
 vol_total = df_mes["vol_mensal"].sum()
 demanda_total = df_mes["demanda_mensal"].sum()
 aderencia = demanda_total / vol_total if vol_total else 0
 gap = demanda_total - vol_total
+
+st.subheader("Análise volumetria")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -340,7 +444,113 @@ graf_mensal = (
 
 st.altair_chart(graf_mensal, use_container_width=True)
 
-st.subheader("Resumo por período climático")
+
+
+st.subheader("Financeiro acumulado esperado vs recebido")
+
+df_fin_acum_plot = df_fin_mes.melt(
+    id_vars=["mes", "mes_label"],
+    value_vars=[
+        "financeiro_esperado_acum",
+        "financeiro_recebido_acum",
+        "limite_80_fin",
+        "limite_120_fin"
+    ],
+    var_name="indicador",
+    value_name="valor"
+)
+
+df_fin_acum_plot["indicador"] = df_fin_acum_plot["indicador"].map({
+    "financeiro_esperado_acum": "Financeiro esperado acumulado",
+    "financeiro_recebido_acum": "Financeiro recebido acumulado",
+    "limite_80_fin": "Limite 80%",
+    "limite_120_fin": "Limite 120%"
+})
+
+linha_fin_principal = (
+    alt.Chart(
+        df_fin_acum_plot[
+            df_fin_acum_plot["indicador"].isin([
+                "Financeiro esperado acumulado",
+                "Financeiro recebido acumulado"
+            ])
+        ]
+    )
+    .mark_line(point=True, strokeWidth=3)
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="R$"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        tooltip=[
+            "mes_label",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
+    )
+)
+
+linha_fin_limites = (
+    alt.Chart(
+        df_fin_acum_plot[
+            df_fin_acum_plot["indicador"].isin([
+                "Limite 80%",
+                "Limite 120%"
+            ])
+        ]
+    )
+    .mark_line(point=False, strokeDash=[6, 4])
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values())),
+        y="valor:Q",
+        color="indicador:N"
+    )
+)
+
+graf_fin_acum = (
+    linha_fin_principal + linha_fin_limites
+).properties(height=420)
+
+st.altair_chart(graf_fin_acum, use_container_width=True)
+
+
+st.subheader("Financeiro mensal esperado vs recebido")
+
+df_fin_mensal_plot = df_fin_mes.melt(
+    id_vars=["mes", "mes_label", "periodo_climatico"],
+    value_vars=["financeiro_esperado", "financeiro_recebido"],
+    var_name="indicador",
+    value_name="valor"
+)
+
+df_fin_mensal_plot["indicador"] = df_fin_mensal_plot["indicador"].map({
+    "financeiro_esperado": "Financeiro esperado",
+    "financeiro_recebido": "Financeiro recebido"
+})
+
+graf_fin_mensal = (
+    alt.Chart(df_fin_mensal_plot)
+    .mark_bar()
+    .encode(
+        x=alt.X("mes_label:N", sort=list(MESES.values()), title="Mês"),
+        y=alt.Y("valor:Q", title="R$"),
+        color=alt.Color("indicador:N", title="Indicador"),
+        xOffset="indicador:N",
+        tooltip=[
+            "mes_label",
+            "periodo_climatico",
+            "indicador",
+            alt.Tooltip("valor:Q", format=",.0f")
+        ]
+    )
+    .properties(height=420)
+)
+
+st.altair_chart(graf_fin_mensal, use_container_width=True)
+
+
+
+
+st.subheader("Resumo por período")
 
 df_periodo = (
     df_filtrado
@@ -691,46 +901,159 @@ st.dataframe(
     }
 )
 
-st.subheader("tmd por cidade")
+if False: 
 
-df_tmd_cidade = (
-    df_filtrado
-    .groupby(["regional_nome", "cidade"], as_index=False)
+    st.subheader("tmd por cidade")
+
+    df_tmd_cidade = (
+        df_filtrado
+        .groupby(["regional_nome", "cidade"], as_index=False)
+        .agg(
+            demanda=("demanda_selecionada", "sum"),
+            tmd_total=("tmd", "sum"),
+            tma_total=("tma", "sum"),
+            tme_total=("tme", "sum")
+        )
+    )
+
+    df_tmd_cidade["tmd_por_demanda"] = (
+        df_tmd_cidade["tmd_total"] /
+        df_tmd_cidade["demanda"].replace(0, pd.NA)
+    )
+
+    df_tmd_cidade["pct_tmd_tma"] = (
+        df_tmd_cidade["tmd_total"] /
+        df_tmd_cidade["tma_total"].replace(0, pd.NA)
+    )
+
+    df_tmd_cidade = df_tmd_cidade.sort_values(
+        "pct_tmd_tma",
+        ascending=False
+    )
+
+    st.dataframe(
+        df_tmd_cidade,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "regional_nome": "Regional",
+            "cidade": "Cidade",
+            "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
+            "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
+            "tma_total": st.column_config.NumberColumn("TMA total", format="%.0f"),
+            "tme_total": st.column_config.NumberColumn("TME total", format="%.0f"),
+            "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
+            "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
+        }
+    )
+
+st.subheader("Histograma de atribuições")
+
+st.caption(
+    "Tempo restante entre a atribuição da atividade e o fim do turno."
+)
+
+tipos_os_sel = st.multiselect(
+    "Tipo OS",
+    options=sorted(df_hist_filtrado["tipo_os"].dropna().unique()),
+    default=sorted(df_hist_filtrado["tipo_os"].dropna().unique())
+)
+
+df_hist_filtrado = df_hist_filtrado[
+    df_hist_filtrado["tipo_os"].isin(tipos_os_sel)
+].copy()
+
+df_hist_resumo = (
+    df_hist_filtrado
+    .groupby("faixa_tempo_restante", as_index=False)
     .agg(
-        demanda=("demanda_selecionada", "sum"),
-        tmd_total=("tmd", "sum"),
-        tma_total=("tma", "sum"),
-        tme_total=("tme", "sum")
+        atribuicoes=("atribuicoes", "sum")
     )
 )
 
-df_tmd_cidade["tmd_por_demanda"] = (
-    df_tmd_cidade["tmd_total"] /
-    df_tmd_cidade["demanda"].replace(0, pd.NA)
+total_atribuicoes = df_hist_resumo["atribuicoes"].sum()
+
+atribuicoes_pos_turno = df_hist_resumo.loc[
+    df_hist_resumo["faixa_tempo_restante"] == "Após fim do turno",
+    "atribuicoes"
+].sum()
+
+criticas = df_hist_resumo[
+    df_hist_resumo["faixa_tempo_restante"].isin([
+        "30m-1h",
+        "<30m",
+        "Após fim do turno"
+    ])
+]["atribuicoes"].sum()
+
+pct_criticas = criticas / total_atribuicoes if total_atribuicoes else 0
+
+colh1, colh2, colh3, colh4 = st.columns(4)
+
+colh1.metric("Total de atribuições", f"{total_atribuicoes:,.0f}".replace(",", "."))
+colh2.metric("Atribuições críticas", f"{criticas:,.0f}".replace(",", "."))
+colh3.metric(
+    "% críticas (<1h)",
+    f"{pct_criticas:.1%}"
 )
 
-df_tmd_cidade["pct_tmd_tma"] = (
-    df_tmd_cidade["tmd_total"] /
-    df_tmd_cidade["tma_total"].replace(0, pd.NA)
+
+colh4.metric(
+    "Após fim do turno",
+    f"{atribuicoes_pos_turno:,.0f}".replace(",", ".")
 )
 
-df_tmd_cidade = df_tmd_cidade.sort_values(
-    "pct_tmd_tma",
-    ascending=False
+ordem_faixas = [
+    ">4h",
+    "3h-4h",
+    "2h-3h",
+    "1h-2h",
+    "30m-1h",
+    "<30m",
+    "Após fim do turno"
+]
+
+
+    
+bars = (
+    alt.Chart(df_hist_resumo)
+    .mark_bar()
+    .encode(
+        x=alt.X("faixa_tempo_restante:N", sort=ordem_faixas, title="Tempo restante"),
+        y=alt.Y("atribuicoes:Q", title="Atribuições", scale=alt.Scale(domainMax=df_hist_resumo["atribuicoes"].max() * 1.15)),
+        tooltip=[
+            "faixa_tempo_restante",
+            alt.Tooltip("atribuicoes:Q", format=",.0f")
+        ]
+    )
 )
 
-st.dataframe(
-    df_tmd_cidade,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "regional_nome": "Regional",
-        "cidade": "Cidade",
-        "demanda": st.column_config.NumberColumn("Demanda", format="%.0f"),
-        "tmd_total": st.column_config.NumberColumn("TMD total", format="%.0f"),
-        "tma_total": st.column_config.NumberColumn("TMA total", format="%.0f"),
-        "tme_total": st.column_config.NumberColumn("TME total", format="%.0f"),
-        "tmd_por_demanda": st.column_config.NumberColumn("TMD por demanda", format="%.1f"),
-        "pct_tmd_tma": st.column_config.NumberColumn("% TMD/TMA", format="%.1%")
-    }
+labels = (
+    alt.Chart(df_hist_resumo)
+    .mark_text(
+        align="center",
+        baseline="bottom",
+        dy=-5
+    )
+    .encode(
+        x=alt.X("faixa_tempo_restante:N", sort=ordem_faixas),
+        y=alt.Y("atribuicoes:Q"),
+        text=alt.Text("atribuicoes:Q", format=",.0f")
+    )
+)
+
+graf_hist = (bars + labels).properties(height=420)
+
+st.altair_chart(graf_hist, use_container_width=True)
+
+
+
+df_hist_resumo["faixa_tempo_restante"] = pd.Categorical(
+    df_hist_resumo["faixa_tempo_restante"],
+    categories=ordem_faixas,
+    ordered=True
+)
+
+df_hist_resumo = df_hist_resumo.sort_values(
+    "faixa_tempo_restante"
 )
