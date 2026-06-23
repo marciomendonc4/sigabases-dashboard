@@ -4,7 +4,7 @@ import altair as alt
 
 st.set_page_config(page_title="Análise de Volumetria", layout="wide")
 
-ARQUIVO = "ANALISE_VOLUMETRIA_SUL_PI.xlsx"
+ARQUIVO = "ANALISE_VOLUMETRIA.xlsx"
 
 ARQUIVO_HISTOGRAMA = "HISTOGRAMA_VOLUMETRIA.xlsx"
 
