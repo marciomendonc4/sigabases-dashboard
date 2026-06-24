@@ -214,6 +214,10 @@ df_filtrado = df[
     (df["servico2"].isin(servicos_sel))
 ].copy()
 
+df_filtrado = df_filtrado[
+    df_filtrado["tipo"] == "BASE VOLUMETRIA"
+].copy()
+
 if not incluir_nao_lidos:
     df_filtrado = df_filtrado[
         df_filtrado["tipo"] == "BASE VOLUMETRIA"
