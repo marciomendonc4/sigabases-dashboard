@@ -200,6 +200,11 @@ with st.sidebar:
         default=["DPL"]
     )
 
+    incluir_nao_lidos = st.checkbox(
+        "Incluir Base Não Lidos",
+        value=False
+    )
+
 df_filtrado = df[
     (df["regional_id"].isin(regionais_sel)) &
     (df["mes"].isin(meses_sel)) &
@@ -208,6 +213,11 @@ df_filtrado = df[
     (df["processo"].isin(processos_sel)) &
     (df["servico2"].isin(servicos_sel))
 ].copy()
+
+if not incluir_nao_lidos:
+    df_filtrado = df_filtrado[
+        df_filtrado["tipo"] == "BASE VOLUMETRIA"
+    ].copy()
 
 df_hist_filtrado = df_hist[
     (df_hist["regional_id"].isin(regionais_sel)) &
@@ -234,6 +244,35 @@ if "GERE" in fontes_demanda:
     df_filtrado["demanda_selecionada"] += df_filtrado["demanda_recebida_gere"]
     df_filtrado["ups_selecionada"] += df_filtrado["ups_gere"]
 
+df_extra_mes = pd.DataFrame(columns=["mes", "demanda_extra"])
+
+if incluir_nao_lidos:
+    df_nao_lidos = df[
+        (df["tipo"] == "BASE NÃO LIDOS") &
+        (df["regional_id"].isin(regionais_sel)) &
+        (df["mes"].isin(meses_sel)) &
+        (df["base"].isin(bases_sel)) &
+        (df["cidade"].isin(cidades_sel)) &
+        (df["processo"].isin(processos_sel))
+    ].copy()
+
+    df_nao_lidos["demanda_extra"] = 0
+
+    if "DPL" in fontes_demanda:
+        df_nao_lidos["demanda_extra"] += df_nao_lidos["demanda_recebida_dpl"]
+
+    if "EQTL" in fontes_demanda:
+        df_nao_lidos["demanda_extra"] += df_nao_lidos["demanda_recebida_eqtl"]
+
+    if "GERE" in fontes_demanda:
+        df_nao_lidos["demanda_extra"] += df_nao_lidos["demanda_recebida_gere"]
+
+    df_extra_mes = (
+        df_nao_lidos
+        .groupby("mes", as_index=False)
+        .agg(demanda_extra=("demanda_extra", "sum"))
+    )
+
 
 df_mes = (
     df_filtrado
@@ -243,6 +282,19 @@ df_mes = (
         demanda_mensal=("demanda_selecionada", "sum"),
     )
     .sort_values("mes")
+)
+
+df_mes = df_mes.merge(
+    df_extra_mes,
+    on="mes",
+    how="left"
+)
+
+df_mes["demanda_extra"] = df_mes["demanda_extra"].fillna(0)
+
+df_mes["demanda_mensal"] = (
+    df_mes["demanda_mensal"] +
+    df_mes["demanda_extra"]
 )
 
 df_mes["vol_acumulada"] = df_mes["vol_mensal"].cumsum()
