@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, time
+import streamlit as st
+from pathlib import Path
 
-ARQUIVO = "ANALISE_NORTE.xlsx"
-
+#ARQUIVO = "ANALISE_NORTE.xlsx"
+ARQUIVO = Path(__file__).resolve().parent / "ANALISE_NORTE.xlsx"
 
 def converter_hora(valor):
     if pd.isna(valor):
@@ -135,16 +137,31 @@ def preparar_dados(caminho):
 
 df = preparar_dados(ARQUIVO)
 
-print(df[[
-    "os",
-    "equipe",
-    "cidade_equipe",
-    "inicio_atividade",
-    "fim_atividade",
-    "duracao_atividade_min",
-    "inicio_turno",
-    "fim_turno",
-    "fim_turno_cenario",
-    "desmobilizar",
-    "12h"
-]].head())
+st.set_page_config(
+    page_title="Análise de Estrutura Operacional",
+    layout="wide"
+)
+
+st.title("Análise de Estrutura Operacional")
+
+with st.spinner("Carregando e preparando os dados..."):
+    df = preparar_dados(ARQUIVO)
+
+st.success(f"{len(df):,} atividades carregadas")
+
+st.dataframe(
+    df[[
+        "os",
+        "equipe",
+        "cidade_equipe",
+        "inicio_atividade",
+        "fim_atividade",
+        "duracao_atividade_min",
+        "inicio_turno",
+        "fim_turno",
+        "fim_turno_cenario",
+        "desmobilizar",
+        "12h"
+    ]].head(100),
+    use_container_width=True
+)
