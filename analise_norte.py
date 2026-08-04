@@ -430,7 +430,7 @@ else:
         "utilizacao_proposta"
     ])
 
-if not redistribuicao.empty:
+1if not redistribuicao.empty:
     red_cidade = redistribuicao.groupby("cidade_equipe", as_index=False).agg(
         os_redistribuidas=("status", lambda s: s.eq("Absorvida").sum()),
         os_nao_absorvidas=("status", lambda s: s.eq("Não absorvida").sum()),
