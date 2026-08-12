@@ -152,6 +152,7 @@ def carregar_atividades():
     df = pd.read_excel("camurupim.xlsx")
     df["data"] = pd.to_datetime(df["data"], errors="coerce").dt.normalize()
     df["ups"] = pd.to_numeric(df["ups"], errors="coerce").fillna(0)
+    df["equipe"] = df["equipe"].astype("string").str.strip().str.upper()
 
     for coluna in ["tipos_os", "grupo_os", "sigla_base"]:
         df[coluna] = (
@@ -261,12 +262,15 @@ def criar_grafico_ups_diario(ups_diario):
     fig.add_trace(
         go.Bar(
             x=ups_diario["data"],
-            y=ups_diario["ups_dia"],
-            name="UPS do dia",
+            y=ups_diario["ups_por_equipe"],
+            name="UPS por equipe",
             marker_color="#4f81bd",
+            customdata=ups_diario[["ups_dia", "equipes_ativas"]],
             hovertemplate=(
                 "<b>%{x|%d/%m/%Y}</b><br>"
-                "UPS: %{y:.1f}"
+                "UPS por equipe: %{y:.1f}<br>"
+                "UPS total: %{customdata[0]:.1f}<br>"
+                "Equipes ativas: %{customdata[1]:.0f}"
                 "<extra></extra>"
             ),
         )
@@ -285,7 +289,7 @@ def criar_grafico_ups_diario(ups_diario):
 
     fig.update_layout(
         title=dict(
-            text="UPS executada por dia",
+            text="UPS diária por equipe ativa",
             x=0.02,
             font=dict(size=18, color="#17324d", family="Arial"),
         ),
@@ -312,7 +316,7 @@ def criar_grafico_ups_diario(ups_diario):
             showgrid=False,
         ),
         yaxis=dict(
-            title="UPS",
+            title="UPS por equipe",
             rangemode="tozero",
             automargin=True,
             title_font=dict(color="#40566b", size=14),
@@ -465,17 +469,22 @@ if atividades_filtradas.empty:
     st.warning("Nenhum serviço encontrado para os filtros selecionados.")
 else:
     ups_diario = (
-        atividades_filtradas.groupby("data", as_index=False)["ups"]
-        .sum()
-        .rename(columns={"ups": "ups_dia"})
+        atividades_filtradas.groupby("data", as_index=False)
+        .agg(
+            ups_dia=("ups", "sum"),
+            equipes_ativas=("equipe", "nunique"),
+        )
         .sort_values("data")
     )
-    media_ups_dia = ups_diario["ups_dia"].mean()
+    ups_diario["ups_por_equipe"] = (
+        ups_diario["ups_dia"] / ups_diario["equipes_ativas"]
+    )
+    media_ups_dia = ups_diario["ups_por_equipe"].mean()
 
     st.metric(
-        f"Média diária de UPS — {ano_selecionado}",
+        f"Média diária de UPS por equipe — {ano_selecionado}",
         f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        help="Soma das UPS executadas dividida pela quantidade de datas distintas no período filtrado.",
+        help="Em cada data, soma das UPS dividida pela quantidade de equipes ativas. O card mostra a média desses resultados diários.",
     )
 
     grafico_tipo = criar_grafico(
