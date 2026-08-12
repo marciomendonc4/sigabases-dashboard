@@ -213,6 +213,7 @@ def criar_grafico(df, coluna, titulo, cor):
     fig.update_traces(
         textposition="outside",
         cliponaxis=False,
+        textfont=dict(color="#243447", size=14),
         hovertemplate=(
             "<b>%{y}</b><br>"
             "Serviços: %{x}<br>"
@@ -222,7 +223,11 @@ def criar_grafico(df, coluna, titulo, cor):
     )
 
     fig.update_layout(
-        title=dict(text=titulo, x=0.02, font=dict(size=18)),
+        title=dict(
+            text=titulo,
+            x=0.02,
+            font=dict(size=18, color="#17324d", family="Arial"),
+        ),
         height=max(380, len(distribuicao) * 42),
         margin=dict(l=15, r=105, t=65, b=30),
         plot_bgcolor="white",
@@ -230,12 +235,17 @@ def criar_grafico(df, coluna, titulo, cor):
         showlegend=False,
         xaxis=dict(
             title="Quantidade de serviços",
+            title_font=dict(color="#40566b", size=14),
+            tickfont=dict(color="#536779", size=12),
             showgrid=True,
-            gridcolor="#edf1f5",
+            gridcolor="#dde5ec",
             zeroline=False,
         ),
-        yaxis=dict(title=None),
-        font=dict(family="Arial", color="#334155"),
+        yaxis=dict(
+            title=None,
+            tickfont=dict(color="#40566b", size=13),
+        ),
+        font=dict(family="Arial", color="#243447"),
     )
 
     return fig
@@ -379,9 +389,21 @@ else:
     coluna1, coluna2 = st.columns(2)
 
     with coluna1:
-        st.plotly_chart(grafico_tipo, use_container_width=True)
+        st.plotly_chart(
+            grafico_tipo,
+            use_container_width=True,
+            theme=None,
+        )
 
     with coluna2:
-        st.plotly_chart(grafico_grupo, use_container_width=True)
+        st.plotly_chart(
+            grafico_grupo,
+            use_container_width=True,
+            theme=None,
+        )
 
-    st.plotly_chart(grafico_base, use_container_width=True)
+    st.plotly_chart(
+        grafico_base,
+        use_container_width=True,
+        theme=None,
+    )
