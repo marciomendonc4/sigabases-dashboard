@@ -4,7 +4,7 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="Análise Operacional — Camurupim",
+    page_title="Camurupim",
     page_icon="📊",
     layout="wide",
 )
@@ -277,21 +277,21 @@ card1, card2, card3 = st.columns([1, 1, 1])
 
 with card1:
     st.metric(
-        "Tempo ocioso COI — média",
+        "Tempo Médio entre Início de Turno e Atribuição",
         formatar_minutos(media_ocioso),
         help="Tempo médio entre o início do turno e a atribuição da primeira atividade.",
     )
 
 with card2:
     st.metric(
-        "Início da primeira atividade — média",
+        "Tempo Médio entre Atribuiçao e Início da Atividade",
         formatar_minutos(media_inicio),
         help="Tempo médio entre a disponibilidade da equipe e o início do deslocamento.",
     )
 
 with card3:
     st.metric(
-        "Atribuições após início do turno",
+        "Atribuições após Início do Turno",
         f"{percentual_atribuicao_apos_turno:.1f}%".replace(".", ","),
         help="Percentual das primeiras atividades atribuídas após o início do turno da equipe.",
     )
@@ -331,7 +331,7 @@ st.dataframe(
 )
 
 st.markdown(
-    '<div class="section-divider">Distribuição das atividades executadas</div>',
+    '<div class="section-divider">Distribuição das atividades</div>',
     unsafe_allow_html=True,
 )
 
@@ -370,7 +370,7 @@ if grupos:
     ]
 
 st.caption(
-    f"{len(atividades_filtradas):,} serviços selecionados"
+    f"{len(atividades_filtradas):,} atribuições"
     .replace(",", ".")
 )
 
