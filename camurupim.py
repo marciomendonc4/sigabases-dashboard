@@ -255,7 +255,7 @@ def criar_grafico(df, coluna, titulo, cor):
 
     return fig
 
-
+"""
 def criar_grafico_ups_diario(ups_diario):
     fig = go.Figure()
 
@@ -329,7 +329,7 @@ def criar_grafico_ups_diario(ups_diario):
     )
 
     return fig
-
+"""
 
 st.title("Análise Operacional — Camurupim")
 st.caption("Primeira atividade do turno e distribuição dos serviços executados")
@@ -481,11 +481,11 @@ else:
     )
     media_ups_dia = ups_diario["ups_por_equipe"].mean()
 
-    st.metric(
-        f"UPS Média Atribuída — {ano_selecionado}",
-        f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        help="",
-    )
+    #st.metric(
+     #   f"UPS Média Atribuída — {ano_selecionado}",
+    #    f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
+    #    help="",
+   # )
 
     grafico_tipo = criar_grafico(
         atividades_filtradas,
