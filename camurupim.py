@@ -266,6 +266,12 @@ st.subheader("Início da primeira atividade")
 
 media_ocioso = log["tempo_ocioso_coi_min"].mean()
 media_inicio = log["tempo_inicio_primeira_atividade_min"].mean()
+percentual_atribuicao_apos_turno = (
+    log["status_atribuicao"]
+    .eq("ATRIBUIÇÃO APÓS INÍCIO DO TURNO")
+    .mean()
+    * 100
+)
 
 card1, card2, card3 = st.columns([1, 1, 1])
 
@@ -284,7 +290,11 @@ with card2:
     )
 
 with card3:
-    st.metric("Dias analisados", f"{len(log):,}".replace(",", "."))
+    st.metric(
+        "Atribuições após início do turno",
+        f"{percentual_atribuicao_apos_turno:.1f}%".replace(".", ","),
+        help="Percentual das primeiras atividades atribuídas após o início do turno da equipe.",
+    )
 
 tabela_log = log.copy()
 tabela_log["data"] = tabela_log["data"].dt.strftime("%d/%m/%Y")
