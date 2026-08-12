@@ -1,10 +1,11 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 
 st.set_page_config(
-    page_title="Camurupim",
+    page_title="Análise Operacional — Camurupim",
     page_icon="📊",
     layout="wide",
 )
@@ -149,7 +150,8 @@ def carregar_log():
 @st.cache_data
 def carregar_atividades():
     df = pd.read_excel("camurupim.xlsx")
-    df["data"] = pd.to_datetime(df["data"], errors="coerce")
+    df["data"] = pd.to_datetime(df["data"], errors="coerce").dt.normalize()
+    df["ups"] = pd.to_numeric(df["ups"], errors="coerce").fillna(0)
 
     for coluna in ["tipos_os", "grupo_os", "sigla_base"]:
         df[coluna] = (
@@ -253,6 +255,78 @@ def criar_grafico(df, coluna, titulo, cor):
     return fig
 
 
+def criar_grafico_ups_diario(ups_diario):
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=ups_diario["data"],
+            y=ups_diario["ups_dia"],
+            name="UPS do dia",
+            marker_color="#4f81bd",
+            hovertemplate=(
+                "<b>%{x|%d/%m/%Y}</b><br>"
+                "UPS: %{y:.1f}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=ups_diario["data"],
+            y=[42] * len(ups_diario),
+            mode="lines",
+            name="Meta diária: 42 UPS",
+            line=dict(color="#d95f59", width=2.5, dash="dash"),
+            hovertemplate="Meta: 42 UPS<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title=dict(
+            text="UPS executada por dia",
+            x=0.02,
+            font=dict(size=18, color="#17324d", family="Arial"),
+        ),
+        height=470,
+        margin=dict(l=75, r=45, t=75, b=80),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(color="#40566b"),
+        ),
+        xaxis=dict(
+            title="Data",
+            tickformat="%d/%m",
+            automargin=True,
+            tickangle=-45,
+            title_font=dict(color="#40566b", size=14),
+            tickfont=dict(color="#536779", size=11),
+            showgrid=False,
+        ),
+        yaxis=dict(
+            title="UPS",
+            rangemode="tozero",
+            automargin=True,
+            title_font=dict(color="#40566b", size=14),
+            tickfont=dict(color="#536779", size=12),
+            showgrid=True,
+            gridcolor="#dde5ec",
+            zeroline=False,
+        ),
+        font=dict(family="Arial", color="#243447"),
+    )
+
+    return fig
+
+
 st.title("Análise Operacional — Camurupim")
 st.caption("Primeira atividade do turno e distribuição dos serviços executados")
 
@@ -262,7 +336,7 @@ except FileNotFoundError:
     st.error("Arquivo camurupim_log.xlsx não encontrado.")
     st.stop()
 
-st.subheader("Início da primeira atividade - PI-CMP-E001M")
+st.subheader("Início da primeira atividade")
 
 media_ocioso = log["tempo_ocioso_coi_min"].mean()
 media_inicio = log["tempo_inicio_primeira_atividade_min"].mean()
@@ -277,21 +351,21 @@ card1, card2, card3 = st.columns([1, 1, 1])
 
 with card1:
     st.metric(
-        "Tempo Médio entre Início de Turno e Atribuição",
+        "Tempo ocioso COI — média",
         formatar_minutos(media_ocioso),
         help="Tempo médio entre o início do turno e a atribuição da primeira atividade.",
     )
 
 with card2:
     st.metric(
-        "Tempo Médio entre Atribuiçao e Início da Atividade",
+        "Início da primeira atividade — média",
         formatar_minutos(media_inicio),
         help="Tempo médio entre a disponibilidade da equipe e o início do deslocamento.",
     )
 
 with card3:
     st.metric(
-        "Atribuições após Início do Turno",
+        "Atribuições após início do turno",
         f"{percentual_atribuicao_apos_turno:.1f}%".replace(".", ","),
         help="Percentual das primeiras atividades atribuídas após o início do turno da equipe.",
     )
@@ -331,7 +405,7 @@ st.dataframe(
 )
 
 st.markdown(
-    '<div class="section-divider">Distribuição das atividades</div>',
+    '<div class="section-divider">Distribuição das atividades executadas</div>',
     unsafe_allow_html=True,
 )
 
@@ -341,23 +415,36 @@ except FileNotFoundError:
     st.error("Arquivo camurupim.xlsx não encontrado.")
     st.stop()
 
-filtro1, filtro2 = st.columns(2)
+anos_disponiveis = sorted(
+    atividades["data"].dropna().dt.year.unique(),
+    reverse=True,
+)
+
+filtro1, filtro2, filtro3 = st.columns([0.7, 1, 1])
 
 with filtro1:
+    ano_selecionado = st.selectbox(
+        "Ano",
+        options=anos_disponiveis,
+    )
+
+with filtro2:
     bases = st.multiselect(
         "Sigla da base",
         options=sorted(atividades["sigla_base"].unique()),
         placeholder="Todas as bases",
     )
 
-with filtro2:
+with filtro3:
     grupos = st.multiselect(
         "Grupo de OS",
         options=sorted(atividades["grupo_os"].unique()),
         placeholder="Todos os grupos",
     )
 
-atividades_filtradas = atividades.copy()
+atividades_filtradas = atividades[
+    atividades["data"].dt.year.eq(ano_selecionado)
+].copy()
 
 if bases:
     atividades_filtradas = atividades_filtradas[
@@ -370,13 +457,27 @@ if grupos:
     ]
 
 st.caption(
-    f"{len(atividades_filtradas):,} atribuições"
+    f"{len(atividades_filtradas):,} serviços selecionados"
     .replace(",", ".")
 )
 
 if atividades_filtradas.empty:
     st.warning("Nenhum serviço encontrado para os filtros selecionados.")
 else:
+    ups_diario = (
+        atividades_filtradas.groupby("data", as_index=False)["ups"]
+        .sum()
+        .rename(columns={"ups": "ups_dia"})
+        .sort_values("data")
+    )
+    media_ups_dia = ups_diario["ups_dia"].mean()
+
+    st.metric(
+        f"Média diária de UPS — {ano_selecionado}",
+        f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        help="Soma das UPS executadas dividida pela quantidade de datas distintas no período filtrado.",
+    )
+
     grafico_tipo = criar_grafico(
         atividades_filtradas,
         "tipos_os",
@@ -416,6 +517,14 @@ else:
 
     st.plotly_chart(
         grafico_base,
+        use_container_width=True,
+        theme=None,
+    )
+
+    grafico_ups = criar_grafico_ups_diario(ups_diario)
+
+    st.plotly_chart(
+        grafico_ups,
         use_container_width=True,
         theme=None,
     )
