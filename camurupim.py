@@ -1,6 +1,5 @@
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 
@@ -151,10 +150,8 @@ def carregar_log():
 def carregar_atividades():
     df = pd.read_excel("camurupim.xlsx")
     df["data"] = pd.to_datetime(df["data"], errors="coerce").dt.normalize()
-    df["ups"] = pd.to_numeric(df["ups"], errors="coerce").fillna(0)
-    df["equipe"] = df["equipe"].astype("string").str.strip().str.upper()
 
-    for coluna in ["tipos_os", "grupo_os", "sigla_base"]:
+    for coluna in ["tipos_os", "grupo_os", "sigla_base", "cidade"]:
         df[coluna] = (
             df[coluna]
             .fillna("NÃO INFORMADO")
@@ -255,83 +252,15 @@ def criar_grafico(df, coluna, titulo, cor):
 
     return fig
 
-"""
-def criar_grafico_ups_diario(ups_diario):
-    fig = go.Figure()
 
-    fig.add_trace(
-        go.Bar(
-            x=ups_diario["data"],
-            y=ups_diario["ups_por_equipe"],
-            name="UPS por equipe",
-            marker_color="#4f81bd",
-            customdata=ups_diario[["ups_dia", "equipes_ativas"]],
-            hovertemplate=(
-                "<b>%{x|%d/%m/%Y}</b><br>"
-                "UPS por equipe: %{y:.1f}<br>"
-                "UPS total: %{customdata[0]:.1f}<br>"
-                "Equipes ativas: %{customdata[1]:.0f}"
-                "<extra></extra>"
-            ),
-        )
-    )
+cidades_titulo = st.session_state.get("filtro_cidade", [])
+titulo_cidade = (
+    "/".join(cidades_titulo)
+    if cidades_titulo
+    else "Camurupim/Cajueiro da Praia"
+)
 
-    fig.add_trace(
-        go.Scatter(
-            x=ups_diario["data"],
-            y=[42] * len(ups_diario),
-            mode="lines",
-            name="Meta diária: 42 UPS",
-            line=dict(color="#d95f59", width=2.5, dash="dash"),
-            hovertemplate="Meta: 42 UPS<extra></extra>",
-        )
-    )
-
-    fig.update_layout(
-        title=dict(
-            text="Atribuição Diária de UPS",
-            x=0.02,
-            font=dict(size=18, color="#17324d", family="Arial"),
-        ),
-        height=470,
-        margin=dict(l=75, r=45, t=75, b=80),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            font=dict(color="#40566b"),
-        ),
-        xaxis=dict(
-            title="Data",
-            tickformat="%d/%m",
-            automargin=True,
-            tickangle=-45,
-            title_font=dict(color="#40566b", size=14),
-            tickfont=dict(color="#536779", size=11),
-            showgrid=False,
-        ),
-        yaxis=dict(
-            title="UPS por equipe",
-            rangemode="tozero",
-            automargin=True,
-            title_font=dict(color="#40566b", size=14),
-            tickfont=dict(color="#536779", size=12),
-            showgrid=True,
-            gridcolor="#dde5ec",
-            zeroline=False,
-        ),
-        font=dict(family="Arial", color="#243447"),
-    )
-
-    return fig
-"""
-
-st.title("Análise Operacional — Camurupim")
+st.title(f"Análise Operacional — {titulo_cidade}")
 st.caption("Primeira atividade do turno e distribuição dos serviços executados")
 
 try:
@@ -419,17 +348,14 @@ except FileNotFoundError:
     st.error("Arquivo camurupim.xlsx não encontrado.")
     st.stop()
 
-anos_disponiveis = sorted(
-    atividades["data"].dropna().dt.year.unique(),
-    reverse=True,
-)
-
-filtro1, filtro2, filtro3 = st.columns([0.7, 1, 1])
+filtro1, filtro2, filtro3 = st.columns(3)
 
 with filtro1:
-    ano_selecionado = st.selectbox(
-        "Ano",
-        options=anos_disponiveis,
+    cidades = st.multiselect(
+        "Cidade",
+        options=sorted(atividades["cidade"].unique()),
+        placeholder="Todas as cidades",
+        key="filtro_cidade",
     )
 
 with filtro2:
@@ -446,9 +372,12 @@ with filtro3:
         placeholder="Todos os grupos",
     )
 
-atividades_filtradas = atividades[
-    atividades["data"].dt.year.eq(ano_selecionado)
-].copy()
+atividades_filtradas = atividades.copy()
+
+if cidades:
+    atividades_filtradas = atividades_filtradas[
+        atividades_filtradas["cidade"].isin(cidades)
+    ]
 
 if bases:
     atividades_filtradas = atividades_filtradas[
@@ -468,25 +397,6 @@ st.caption(
 if atividades_filtradas.empty:
     st.warning("Nenhum serviço encontrado para os filtros selecionados.")
 else:
-    ups_diario = (
-        atividades_filtradas.groupby("data", as_index=False)
-        .agg(
-            ups_dia=("ups", "sum"),
-            equipes_ativas=("equipe", "nunique"),
-        )
-        .sort_values("data")
-    )
-    ups_diario["ups_por_equipe"] = (
-        ups_diario["ups_dia"] / ups_diario["equipes_ativas"]
-    )
-    media_ups_dia = ups_diario["ups_por_equipe"].mean()
-
-    #st.metric(
-     #   f"UPS Média Atribuída — {ano_selecionado}",
-    #    f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    #    help="",
-   # )
-
     grafico_tipo = criar_grafico(
         atividades_filtradas,
         "tipos_os",
@@ -526,14 +436,6 @@ else:
 
     st.plotly_chart(
         grafico_base,
-        use_container_width=True,
-        theme=None,
-    )
-
-    grafico_ups = criar_grafico_ups_diario(ups_diario)
-
-    st.plotly_chart(
-        grafico_ups,
         use_container_width=True,
         theme=None,
     )
