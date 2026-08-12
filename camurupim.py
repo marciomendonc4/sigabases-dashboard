@@ -261,7 +261,7 @@ titulo_cidade = (
 )
 
 st.title(f"Análise Operacional — {titulo_cidade}")
-st.caption("Primeira atividade do turno e distribuição dos serviços executados")
+#st.caption("Primeira atividade do turno e distribuição dos serviços executados")
 
 try:
     log = carregar_log()
