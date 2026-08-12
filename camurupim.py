@@ -229,12 +229,13 @@ def criar_grafico(df, coluna, titulo, cor):
             font=dict(size=18, color="#17324d", family="Arial"),
         ),
         height=max(380, len(distribuicao) * 42),
-        margin=dict(l=15, r=105, t=65, b=30),
+        margin=dict(l=115, r=115, t=65, b=55),
         plot_bgcolor="white",
         paper_bgcolor="white",
         showlegend=False,
         xaxis=dict(
             title="Quantidade de serviços",
+            automargin=True,
             title_font=dict(color="#40566b", size=14),
             tickfont=dict(color="#536779", size=12),
             showgrid=True,
@@ -243,6 +244,7 @@ def criar_grafico(df, coluna, titulo, cor):
         ),
         yaxis=dict(
             title=None,
+            automargin=True,
             tickfont=dict(color="#40566b", size=13),
         ),
         font=dict(family="Arial", color="#243447"),
