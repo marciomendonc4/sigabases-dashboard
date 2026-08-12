@@ -12,21 +12,54 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp { background-color: #f7f9fb; }
+    :root { color-scheme: light; }
+    .stApp {
+        background-color: #f7f9fb;
+        color: #243447;
+    }
     .block-container { max-width: 1450px; padding-top: 2rem; }
+    h1, h2, h3, h4, h5, h6,
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stCaptionContainer"],
+    .stCaption {
+        color: #243447 !important;
+    }
+    h1 { color: #17324d !important; }
+    h2, h3 { color: #294861 !important; }
     [data-testid="stMetric"] {
         background: #ffffff;
-        border: 1px solid #e6ebf0;
+        border: 1px solid #dbe4ec;
         border-radius: 14px;
         padding: 18px 20px;
-        box-shadow: 0 4px 16px rgba(31, 50, 65, 0.04);
+        box-shadow: 0 5px 18px rgba(31, 50, 65, 0.08);
+    }
+    [data-testid="stMetricLabel"] p {
+        color: #536779 !important;
+        font-weight: 600;
+    }
+    [data-testid="stMetricValue"] {
+        color: #17324d !important;
+    }
+    [data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        border-color: #cbd6e1 !important;
+        color: #243447 !important;
+    }
+    [data-baseweb="select"] span,
+    [data-baseweb="select"] input,
+    [data-baseweb="tag"] span {
+        color: #243447 !important;
+    }
+    .stMultiSelect label p {
+        color: #40566b !important;
+        font-weight: 600;
     }
     .section-divider {
         display: flex;
         align-items: center;
         gap: 14px;
         margin: 2.8rem 0 1.7rem 0;
-        color: #718096;
+        color: #60758a;
         font-size: 0.78rem;
         font-weight: 600;
         letter-spacing: 0.12em;
