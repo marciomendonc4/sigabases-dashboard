@@ -262,7 +262,7 @@ except FileNotFoundError:
     st.error("Arquivo camurupim_log.xlsx não encontrado.")
     st.stop()
 
-st.subheader("Início da primeira atividade")
+st.subheader("Início da primeira atividade - PI-CMP-E001M")
 
 media_ocioso = log["tempo_ocioso_coi_min"].mean()
 media_inicio = log["tempo_inicio_primeira_atividade_min"].mean()
