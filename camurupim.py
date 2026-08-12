@@ -289,7 +289,7 @@ def criar_grafico_ups_diario(ups_diario):
 
     fig.update_layout(
         title=dict(
-            text="UPS diária por equipe ativa",
+            text="Atribuição Diária de UPS",
             x=0.02,
             font=dict(size=18, color="#17324d", family="Arial"),
         ),
@@ -482,9 +482,9 @@ else:
     media_ups_dia = ups_diario["ups_por_equipe"].mean()
 
     st.metric(
-        f"Média diária de UPS por equipe — {ano_selecionado}",
+        f"UPS Média Atribuída — {ano_selecionado}",
         f"{media_ups_dia:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        help="Em cada data, soma das UPS dividida pela quantidade de equipes ativas. O card mostra a média desses resultados diários.",
+        help="",
     )
 
     grafico_tipo = criar_grafico(
