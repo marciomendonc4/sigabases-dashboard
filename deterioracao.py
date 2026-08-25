@@ -42,6 +42,7 @@ def carregar_dados():
     df["QTD_DIAS"] = df["QTD_DIAS"].fillna(0)
 
     colunas_texto = [
+        "REGIONAL",
         "EQUIPE",
         "SIGLA",
         "BASE",
@@ -60,6 +61,21 @@ def carregar_dados():
             .str.strip()
             .str.upper()
         )
+
+    regionais = {
+    30: "SUL PI",
+    28: "METROP. PI",
+    29: "NORTE PI",
+    }
+
+    df["REGIONAL"] = (
+        pd.to_numeric(
+            df["REGIONAL"],
+            errors="coerce",
+        )
+        .map(regionais)
+        .fillna("NÃO INFORMADO")
+    )
 
     df = df[
         df["ANO"].isin([2025, 2026])
@@ -525,6 +541,12 @@ df_original = carregar_dados()
 st.sidebar.header("Filtros")
 
 df_filtrado = df_original.copy()
+
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "REGIONAL",
+    "Regional",
+)
 
 df_filtrado = aplicar_filtro(
     df_filtrado,
