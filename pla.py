@@ -181,11 +181,11 @@ camada_pontos = pdk.Layer(
     "ScatterplotLayer",
     data=df_filtrado,
     get_position="[LONGITUDE, LATITUDE]",
-    get_fill_color=[21, 101, 192, 150],
-    get_line_color=[255, 255, 255],
-    get_radius=180,
-    radius_min_pixels=3,
-    radius_max_pixels=12,
+    get_fill_color=[21, 101, 192, 190],
+    get_line_color=[255, 255, 255, 220],
+    get_radius=350,
+    radius_min_pixels=6,
+    radius_max_pixels=22,
     line_width_min_pixels=1,
     pickable=True,
     auto_highlight=True,
@@ -221,7 +221,10 @@ st.pydeck_chart(
         layers=[camada_pontos],
         initial_view_state=visualizacao_inicial,
         tooltip=tooltip,
-        map_style=None,
+        map_style=(
+            "https://basemaps.cartocdn.com/gl/"
+            "positron-gl-style/style.json"
+        ),
     ),
     use_container_width=True,
     height=650,
