@@ -682,12 +682,12 @@ variacao_media = calcular_variacao(
 col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
-    "Execução em 2025",
+    "Demanda em 2025",
     formatar_numero(execucao_2025),
 )
 
 col2.metric(
-    "Execução em 2026",
+    "Demanda em 2026",
     formatar_numero(execucao_2026),
     delta=formatar_variacao(
         variacao_execucao
