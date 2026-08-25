@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("Comparativo de Execução — 2025 × 2026")
-st.caption("Período comparável: 01/01 a 24/08 de cada ano")
+st.caption("Período: 01/01 a 24/08")
 
 
 @st.cache_data
