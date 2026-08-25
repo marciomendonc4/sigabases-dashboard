@@ -30,6 +30,7 @@ def carregar_dados():
         "BAIRRO",
         "PACOTE",
         "SANEADO",
+        "NOTA_PROJ",
     ]
 
     for coluna in colunas_texto:
@@ -105,6 +106,12 @@ df_filtrado = aplicar_filtro(
     df_filtrado,
     "REGIONAL",
     "Regional",
+)
+
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "NOTA_PROJ",
+    "Nota de Projeto",
 )
 
 df_filtrado = aplicar_filtro(
