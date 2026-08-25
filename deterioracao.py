@@ -3,10 +3,6 @@ import plotly.express as px
 import streamlit as st
 
 
-# =========================================================
-# PAGE CONFIGURATION
-# =========================================================
-
 st.set_page_config(
     page_title="Comparativo de Execução",
     page_icon="📊",
@@ -16,10 +12,6 @@ st.set_page_config(
 st.title("Comparativo de Execução — 2025 × 2026")
 st.caption("Período comparável: 01/01 a 24/08 de cada ano")
 
-
-# =========================================================
-# DATA LOADING
-# =========================================================
 
 @st.cache_data
 def carregar_dados():
@@ -31,9 +23,23 @@ def carregar_dados():
         .str.upper()
     )
 
-    df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce")
-    df["MES"] = pd.to_numeric(df["MES"], errors="coerce")
-    df["QTD"] = pd.to_numeric(df["QTD"], errors="coerce").fillna(0)
+    colunas_numericas = [
+        "ANO",
+        "MES",
+        "QTD",
+        "PRODUCAO",
+        "QTD_DIAS",
+    ]
+
+    for coluna in colunas_numericas:
+        df[coluna] = pd.to_numeric(
+            df[coluna],
+            errors="coerce",
+        )
+
+    df["QTD"] = df["QTD"].fillna(0)
+    df["PRODUCAO"] = df["PRODUCAO"].fillna(0)
+    df["QTD_DIAS"] = df["QTD_DIAS"].fillna(0)
 
     colunas_texto = [
         "EQUIPE",
@@ -47,18 +53,25 @@ def carregar_dados():
     ]
 
     for coluna in colunas_texto:
-        if coluna in df.columns:
-            df[coluna] = (
-                df[coluna]
-                .fillna("NÃO INFORMADO")
-                .astype(str)
-                .str.strip()
-                .str.upper()
-            )
+        df[coluna] = (
+            df[coluna]
+            .fillna("NÃO INFORMADO")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
 
-    df = df[df["ANO"].isin([2025, 2026])]
-    df = df[df["MES"].between(1, 8)]
-    df = df.dropna(subset=["ANO", "MES", "EQUIPE"])
+    df = df[
+        df["ANO"].isin([2025, 2026])
+    ]
+
+    df = df[
+        df["MES"].between(1, 8)
+    ]
+
+    df = df.dropna(
+        subset=["ANO", "MES", "EQUIPE"]
+    )
 
     df["ANO"] = df["ANO"].astype(int)
     df["MES"] = df["MES"].astype(int)
@@ -66,32 +79,17 @@ def carregar_dados():
     return df
 
 
-df_original = carregar_dados()
-
-
-# =========================================================
-# AUXILIARY FUNCTIONS
-# =========================================================
-
-MESES = {
-    1: "Jan",
-    2: "Fev",
-    3: "Mar",
-    4: "Abr",
-    5: "Mai",
-    6: "Jun",
-    7: "Jul",
-    8: "Ago",
-}
-
-
-def filtro_multiselect(df, coluna, titulo):
-    opcoes = sorted(df[coluna].dropna().unique())
+def aplicar_filtro(df, coluna, titulo):
+    opcoes = sorted(
+        df[coluna]
+        .dropna()
+        .unique()
+        .tolist()
+    )
 
     selecionados = st.sidebar.multiselect(
         titulo,
         options=opcoes,
-        default=[],
         placeholder="Todos",
     )
 
@@ -101,24 +99,9 @@ def filtro_multiselect(df, coluna, titulo):
     return df
 
 
-def valor_ano(df, ano, coluna):
-    resultado = df.loc[df["ANO"] == ano, coluna]
-
-    if resultado.empty:
-        return 0
-
-    return resultado.iloc[0]
-
-
-def calcular_variacao(valor_2025, valor_2026):
-    if valor_2025 == 0:
-        return None
-
-    return ((valor_2026 / valor_2025) - 1) * 100
-
-
 def formatar_numero(valor, casas=0):
     formato = f"{{:,.{casas}f}}"
+
     return (
         formato.format(valor)
         .replace(",", "X")
@@ -128,156 +111,458 @@ def formatar_numero(valor, casas=0):
 
 
 def formatar_variacao(valor):
-    if valor is None:
-        return "N/A"
+    if valor is None or pd.isna(valor):
+        return None
 
     return f"{valor:+.1f}%".replace(".", ",")
 
 
-# =========================================================
-# SIDEBAR FILTERS
-# =========================================================
+def calcular_variacao(valor_2025, valor_2026):
+    if valor_2025 == 0:
+        return None
+
+    return (
+        (valor_2026 / valor_2025) - 1
+    ) * 100
+
+
+def obter_valor_ano(df, ano, coluna):
+    resultado = df.loc[
+        df["ANO"] == ano,
+        coluna,
+    ]
+
+    if resultado.empty:
+        return 0
+
+    return resultado.iloc[0]
+
+
+def calcular_resumo_mensal(df):
+    execucao = (
+        df.groupby(
+            ["ANO", "MES"],
+            as_index=False,
+        )
+        .agg(
+            EXECUCAO=("QTD", "sum"),
+            PRODUCAO=("PRODUCAO", "sum"),
+            EQUIPES_ATIVAS=("EQUIPE", "nunique"),
+        )
+    )
+
+    dias = (
+        df[
+            [
+                "ANO",
+                "MES",
+                "EQUIPE",
+                "QTD_DIAS",
+            ]
+        ]
+        .drop_duplicates(
+            subset=[
+                "ANO",
+                "MES",
+                "EQUIPE",
+            ]
+        )
+        .groupby(
+            ["ANO", "MES"],
+            as_index=False,
+        )
+        .agg(
+            TOTAL_DIAS=("QTD_DIAS", "sum")
+        )
+    )
+
+    resumo = execucao.merge(
+        dias,
+        on=["ANO", "MES"],
+        how="left",
+    )
+
+    resumo["MEDIA_QTD_DIARIA"] = (
+        resumo["EXECUCAO"]
+        .div(
+            resumo["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    resumo["MEDIA_PRODUCAO_DIARIA"] = (
+        resumo["PRODUCAO"]
+        .div(
+            resumo["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    resumo = resumo.sort_values(
+        ["ANO", "MES"]
+    )
+
+    resumo["EXECUCAO_ACUMULADA"] = (
+        resumo
+        .groupby("ANO")["EXECUCAO"]
+        .cumsum()
+    )
+
+    resumo["ANO_TEXTO"] = resumo["ANO"].astype(str)
+
+    return resumo
+
+
+def calcular_resumo_periodo(df):
+    execucao = (
+        df.groupby(
+            "ANO",
+            as_index=False,
+        )
+        .agg(
+            EXECUCAO=("QTD", "sum"),
+            PRODUCAO=("PRODUCAO", "sum"),
+        )
+    )
+
+    dias = (
+        df[
+            [
+                "ANO",
+                "MES",
+                "EQUIPE",
+                "QTD_DIAS",
+            ]
+        ]
+        .drop_duplicates(
+            subset=[
+                "ANO",
+                "MES",
+                "EQUIPE",
+            ]
+        )
+        .groupby(
+            "ANO",
+            as_index=False,
+        )
+        .agg(
+            TOTAL_DIAS=("QTD_DIAS", "sum")
+        )
+    )
+
+    resumo = execucao.merge(
+        dias,
+        on="ANO",
+        how="left",
+    )
+
+    resumo["MEDIA_QTD_DIARIA"] = (
+        resumo["EXECUCAO"]
+        .div(
+            resumo["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    resumo["MEDIA_PRODUCAO_DIARIA"] = (
+        resumo["PRODUCAO"]
+        .div(
+            resumo["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    return resumo
+
+
+def calcular_medias_tipo_os(df):
+    volumes = (
+        df.groupby(
+            ["ANO", "TIPO_OS"],
+            as_index=False,
+        )
+        .agg(
+            QTD=("QTD", "sum"),
+            PRODUCAO=("PRODUCAO", "sum"),
+        )
+    )
+
+    dias = (
+        df[
+            [
+                "ANO",
+                "MES",
+                "EQUIPE",
+                "TIPO_OS",
+                "QTD_DIAS",
+            ]
+        ]
+        .drop_duplicates(
+            subset=[
+                "ANO",
+                "MES",
+                "EQUIPE",
+                "TIPO_OS",
+            ]
+        )
+        .groupby(
+            ["ANO", "TIPO_OS"],
+            as_index=False,
+        )
+        .agg(
+            TOTAL_DIAS=("QTD_DIAS", "sum")
+        )
+    )
+
+    medias = volumes.merge(
+        dias,
+        on=["ANO", "TIPO_OS"],
+        how="left",
+    )
+
+    medias["QTDE_MEDIA"] = (
+        medias["QTD"]
+        .div(
+            medias["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    medias["VALOR_MEDIO"] = (
+        medias["PRODUCAO"]
+        .div(
+            medias["TOTAL_DIAS"].replace(0, pd.NA)
+        )
+    )
+
+    return medias
+
+
+def criar_tabela_tipo_os(df):
+    medias = calcular_medias_tipo_os(df)
+
+    tabela = (
+        medias
+        .pivot(
+            index="TIPO_OS",
+            columns="ANO",
+            values=[
+                "QTDE_MEDIA",
+                "VALOR_MEDIO",
+            ],
+        )
+    )
+
+    tabela.columns = [
+        f"{indicador}_{ano}"
+        for indicador, ano in tabela.columns
+    ]
+
+    tabela = tabela.reset_index()
+
+    colunas_esperadas = [
+        "QTDE_MEDIA_2025",
+        "VALOR_MEDIO_2025",
+        "QTDE_MEDIA_2026",
+        "VALOR_MEDIO_2026",
+    ]
+
+    for coluna in colunas_esperadas:
+        if coluna not in tabela.columns:
+            tabela[coluna] = 0
+
+    tabela["VAR_QTDE"] = (
+        tabela["QTDE_MEDIA_2026"]
+        .div(
+            tabela[
+                "QTDE_MEDIA_2025"
+            ].replace(0, pd.NA)
+        )
+        .sub(1)
+        .mul(100)
+    )
+
+    tabela["VAR_VALOR"] = (
+        tabela["VALOR_MEDIO_2026"]
+        .div(
+            tabela[
+                "VALOR_MEDIO_2025"
+            ].replace(0, pd.NA)
+        )
+        .sub(1)
+        .mul(100)
+    )
+
+    resumo_total = calcular_resumo_periodo(df)
+
+    total_2025 = resumo_total[
+        resumo_total["ANO"] == 2025
+    ]
+
+    total_2026 = resumo_total[
+        resumo_total["ANO"] == 2026
+    ]
+
+    qtd_2025 = (
+        total_2025["MEDIA_QTD_DIARIA"].iloc[0]
+        if not total_2025.empty
+        else 0
+    )
+
+    valor_2025 = (
+        total_2025["MEDIA_PRODUCAO_DIARIA"].iloc[0]
+        if not total_2025.empty
+        else 0
+    )
+
+    qtd_2026 = (
+        total_2026["MEDIA_QTD_DIARIA"].iloc[0]
+        if not total_2026.empty
+        else 0
+    )
+
+    valor_2026 = (
+        total_2026["MEDIA_PRODUCAO_DIARIA"].iloc[0]
+        if not total_2026.empty
+        else 0
+    )
+
+    linha_total = pd.DataFrame(
+        {
+            "TIPO_OS": ["TOTAL"],
+            "QTDE_MEDIA_2025": [qtd_2025],
+            "VALOR_MEDIO_2025": [valor_2025],
+            "QTDE_MEDIA_2026": [qtd_2026],
+            "VALOR_MEDIO_2026": [valor_2026],
+            "VAR_QTDE": [
+                calcular_variacao(
+                    qtd_2025,
+                    qtd_2026,
+                )
+            ],
+            "VAR_VALOR": [
+                calcular_variacao(
+                    valor_2025,
+                    valor_2026,
+                )
+            ],
+        }
+    )
+
+    tabela = tabela[
+        [
+            "TIPO_OS",
+            "QTDE_MEDIA_2025",
+            "VALOR_MEDIO_2025",
+            "QTDE_MEDIA_2026",
+            "VALOR_MEDIO_2026",
+            "VAR_QTDE",
+            "VAR_VALOR",
+        ]
+    ]
+
+    tabela = tabela.sort_values(
+        "TIPO_OS"
+    )
+
+    tabela = pd.concat(
+        [tabela, linha_total],
+        ignore_index=True,
+    )
+
+    return tabela
+
+
+df_original = carregar_dados()
 
 st.sidebar.header("Filtros")
 
 df_filtrado = df_original.copy()
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "BASE", "Base"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "BASE",
+    "Base",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "SIGLA", "Sigla"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "SIGLA",
+    "Sigla",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "TIPO_EQUIPE", "Tipo de equipe"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "TIPO_EQUIPE",
+    "Tipo de equipe",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "SEGMENTO", "Segmento"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "SEGMENTO",
+    "Segmento",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "EQUIPE", "Equipe"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "EQUIPE",
+    "Equipe",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "GRUPO_OS", "Grupo OS"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "GRUPO_OS",
+    "Grupo OS",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "TIPO_OS", "Tipo OS"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "TIPO_OS",
+    "Tipo OS",
 )
 
-df_filtrado = filtro_multiselect(
-    df_filtrado, "PROD_IMPROD", "Produtivo / Improdutivo"
+df_filtrado = aplicar_filtro(
+    df_filtrado,
+    "PROD_IMPROD",
+    "Produtivo / Improdutivo",
 )
 
 if df_filtrado.empty:
-    st.warning("Nenhum registro encontrado para os filtros selecionados.")
+    st.warning(
+        "Nenhum registro encontrado para os filtros selecionados."
+    )
     st.stop()
 
-
-# =========================================================
-# MONTHLY CONSOLIDATION
-# =========================================================
-
-# Each team is counted only once within each year/month.
-resumo_mensal = (
+resumo_mensal = calcular_resumo_mensal(
     df_filtrado
-    .groupby(["ANO", "MES"], as_index=False)
-    .agg(
-        EXECUCAO=("QTD", "sum"),
-        EQUIPES_ATIVAS=("EQUIPE", "nunique"),
-    )
 )
 
-resumo_mensal["EXECUCAO_POR_EQUIPE"] = (
-    resumo_mensal["EXECUCAO"]
-    / resumo_mensal["EQUIPES_ATIVAS"]
-)
-
-resumo_mensal["MES_NOME"] = resumo_mensal["MES"].map(MESES)
-
-resumo_mensal = resumo_mensal.sort_values(
-    ["ANO", "MES"]
-)
-
-resumo_mensal["EXECUCAO_ACUMULADA"] = (
-    resumo_mensal
-    .groupby("ANO")["EXECUCAO"]
-    .cumsum()
-)
-
-resumo_mensal["ANO_TEXTO"] = resumo_mensal["ANO"].astype(str)
-
-
-# =========================================================
-# PERIOD SUMMARY
-# =========================================================
-
-# A team-month identifies one available team in one month.
-equipes_mes = (
-    df_filtrado[["ANO", "MES", "EQUIPE"]]
-    .drop_duplicates()
-    .groupby("ANO", as_index=False)
-    .size()
-    .rename(columns={"size": "EQUIPE_MES"})
-)
-
-resumo_periodo = (
+resumo_periodo = calcular_resumo_periodo(
     df_filtrado
-    .groupby("ANO", as_index=False)
-    .agg(
-        EXECUCAO=("QTD", "sum"),
-        EQUIPES_DISTINTAS=("EQUIPE", "nunique"),
-    )
-    .merge(equipes_mes, on="ANO", how="left")
 )
 
-resumo_periodo["EXECUCAO_POR_EQUIPE_MES"] = (
-    resumo_periodo["EXECUCAO"]
-    / resumo_periodo["EQUIPE_MES"]
+execucao_2025 = obter_valor_ano(
+    resumo_periodo,
+    2025,
+    "EXECUCAO",
 )
 
-
-# =========================================================
-# KPI CARDS
-# =========================================================
-
-execucao_2025 = valor_ano(
-    resumo_periodo, 2025, "EXECUCAO"
+execucao_2026 = obter_valor_ano(
+    resumo_periodo,
+    2026,
+    "EXECUCAO",
 )
 
-execucao_2026 = valor_ano(
-    resumo_periodo, 2026, "EXECUCAO"
+media_2025 = obter_valor_ano(
+    resumo_periodo,
+    2025,
+    "MEDIA_QTD_DIARIA",
 )
 
-equipe_mes_2025 = valor_ano(
-    resumo_periodo, 2025, "EQUIPE_MES"
-)
-
-equipe_mes_2026 = valor_ano(
-    resumo_periodo, 2026, "EQUIPE_MES"
-)
-
-media_2025 = valor_ano(
-    resumo_periodo, 2025, "EXECUCAO_POR_EQUIPE_MES"
-)
-
-media_2026 = valor_ano(
-    resumo_periodo, 2026, "EXECUCAO_POR_EQUIPE_MES"
+media_2026 = obter_valor_ano(
+    resumo_periodo,
+    2026,
+    "MEDIA_QTD_DIARIA",
 )
 
 variacao_execucao = calcular_variacao(
     execucao_2025,
     execucao_2026,
-)
-
-variacao_estrutura = calcular_variacao(
-    equipe_mes_2025,
-    equipe_mes_2026,
 )
 
 variacao_media = calcular_variacao(
@@ -295,25 +580,23 @@ col1.metric(
 col2.metric(
     "Execução em 2026",
     formatar_numero(execucao_2026),
-    delta=formatar_variacao(variacao_execucao),
+    delta=formatar_variacao(
+        variacao_execucao
+    ),
 )
 
 col3.metric(
-    "Variação da estrutura",
-    formatar_numero(equipe_mes_2026) + " equipes-mês",
-    delta=formatar_variacao(variacao_estrutura),
+    "Média diária por equipe — 2025",
+    formatar_numero(media_2025, 2),
 )
 
 col4.metric(
-    "Execução por equipe-mês",
-    formatar_numero(media_2026, 1),
-    delta=formatar_variacao(variacao_media),
+    "Média diária por equipe — 2026",
+    formatar_numero(media_2026, 2),
+    delta=formatar_variacao(
+        variacao_media
+    ),
 )
-
-
-# =========================================================
-# MONTHLY LINE CHARTS
-# =========================================================
 
 col_esquerda, col_direita = st.columns(2)
 
@@ -339,8 +622,17 @@ with col_esquerda:
 
     fig_execucao.update_xaxes(
         tickmode="array",
-        tickvals=list(MESES.keys()),
-        ticktext=list(MESES.values()),
+        tickvals=list(range(1, 9)),
+        ticktext=[
+            "Jan",
+            "Fev",
+            "Mar",
+            "Abr",
+            "Mai",
+            "Jun",
+            "Jul",
+            "Ago",
+        ],
     )
 
     fig_execucao.update_layout(
@@ -354,17 +646,17 @@ with col_esquerda:
     )
 
 with col_direita:
-    st.subheader("Execução mensal por equipe ativa")
+    st.subheader("Média diária por equipe")
 
     fig_media = px.line(
         resumo_mensal,
         x="MES",
-        y="EXECUCAO_POR_EQUIPE",
+        y="MEDIA_QTD_DIARIA",
         color="ANO_TEXTO",
         markers=True,
         labels={
             "MES": "Mês",
-            "EXECUCAO_POR_EQUIPE": "Execução por equipe",
+            "MEDIA_QTD_DIARIA": "Atividades por equipe/dia",
             "ANO_TEXTO": "Ano",
         },
         color_discrete_map={
@@ -375,8 +667,17 @@ with col_direita:
 
     fig_media.update_xaxes(
         tickmode="array",
-        tickvals=list(MESES.keys()),
-        ticktext=list(MESES.values()),
+        tickvals=list(range(1, 9)),
+        ticktext=[
+            "Jan",
+            "Fev",
+            "Mar",
+            "Abr",
+            "Mai",
+            "Jun",
+            "Jul",
+            "Ago",
+        ],
     )
 
     fig_media.update_layout(
@@ -388,11 +689,6 @@ with col_direita:
         fig_media,
         use_container_width=True,
     )
-
-
-# =========================================================
-# CUMULATIVE EXECUTION
-# =========================================================
 
 st.subheader("Execução acumulada")
 
@@ -415,8 +711,17 @@ fig_acumulado = px.line(
 
 fig_acumulado.update_xaxes(
     tickmode="array",
-    tickvals=list(MESES.keys()),
-    ticktext=list(MESES.values()),
+    tickvals=list(range(1, 9)),
+    ticktext=[
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+    ],
 )
 
 fig_acumulado.update_layout(
@@ -429,28 +734,22 @@ st.plotly_chart(
     use_container_width=True,
 )
 
-
-# =========================================================
-# COMPARISON BY GRUPO_OS
-# =========================================================
-
 st.subheader("Comparativo por grupo de OS")
 
 grupo_os = (
     df_filtrado
-    .groupby(["GRUPO_OS", "ANO"], as_index=False)
+    .groupby(
+        ["GRUPO_OS", "ANO"],
+        as_index=False,
+    )
     .agg(
         EXECUCAO=("QTD", "sum"),
-        EQUIPES=("EQUIPE", "nunique"),
     )
 )
 
-grupo_os["EXECUCAO_POR_EQUIPE"] = (
-    grupo_os["EXECUCAO"]
-    / grupo_os["EQUIPES"]
+grupo_os["ANO_TEXTO"] = (
+    grupo_os["ANO"].astype(str)
 )
-
-grupo_os["ANO_TEXTO"] = grupo_os["ANO"].astype(str)
 
 ordem_grupos = (
     grupo_os
@@ -458,6 +757,7 @@ ordem_grupos = (
     .sum()
     .sort_values(ascending=True)
     .index
+    .tolist()
 )
 
 fig_grupo = px.bar(
@@ -468,7 +768,7 @@ fig_grupo = px.bar(
     barmode="group",
     orientation="h",
     category_orders={
-        "GRUPO_OS": ordem_grupos.tolist()
+        "GRUPO_OS": ordem_grupos
     },
     labels={
         "EXECUCAO": "Quantidade executada",
@@ -482,7 +782,10 @@ fig_grupo = px.bar(
 )
 
 fig_grupo.update_layout(
-    height=max(450, len(ordem_grupos) * 42),
+    height=max(
+        400,
+        len(ordem_grupos) * 60,
+    ),
     legend_title_text="Ano",
 )
 
@@ -491,155 +794,99 @@ st.plotly_chart(
     use_container_width=True,
 )
 
+st.subheader("Execução média diária por tipo de OS")
 
-# =========================================================
-# VARIATION BY GRUPO_OS
-# =========================================================
-
-comparativo_grupo = (
-    grupo_os
-    .pivot_table(
-        index="GRUPO_OS",
-        columns="ANO",
-        values="EXECUCAO",
-        aggfunc="sum",
-        fill_value=0,
-    )
-    .reset_index()
-)
-
-for ano in [2025, 2026]:
-    if ano not in comparativo_grupo.columns:
-        comparativo_grupo[ano] = 0
-
-comparativo_grupo["DIFERENCA"] = (
-    comparativo_grupo[2026]
-    - comparativo_grupo[2025]
-)
-
-comparativo_grupo["VARIACAO_PCT"] = (
-    comparativo_grupo["DIFERENCA"]
-    .div(comparativo_grupo[2025].replace(0, pd.NA))
-    .mul(100)
-)
-
-comparativo_grupo = comparativo_grupo.sort_values(
-    "DIFERENCA"
-)
-
-st.subheader("Variação por grupo de OS")
-
-fig_variacao = px.bar(
-    comparativo_grupo,
-    x="DIFERENCA",
-    y="GRUPO_OS",
-    orientation="h",
-    color="DIFERENCA",
-    color_continuous_scale=[
-        [0.0, "#B71C1C"],
-        [0.5, "#EEEEEE"],
-        [1.0, "#1B5E20"],
-    ],
-    labels={
-        "DIFERENCA": "Diferença absoluta: 2026 − 2025",
-        "GRUPO_OS": "Grupo OS",
-    },
-)
-
-fig_variacao.update_layout(
-    height=max(450, len(comparativo_grupo) * 42),
-    coloraxis_showscale=False,
-)
-
-st.plotly_chart(
-    fig_variacao,
-    use_container_width=True,
-)
-
-
-# =========================================================
-# PRODUCTIVE / UNPRODUCTIVE COMPOSITION
-# =========================================================
-
-st.subheader("Composição produtiva e improdutiva")
-
-produtividade = (
+tabela_tipo_os = criar_tabela_tipo_os(
     df_filtrado
-    .groupby(["ANO", "PROD_IMPROD"], as_index=False)
-    .agg(EXECUCAO=("QTD", "sum"))
 )
 
-produtividade["ANO_TEXTO"] = produtividade["ANO"].astype(str)
-
-fig_produtividade = px.bar(
-    produtividade,
-    x="ANO_TEXTO",
-    y="EXECUCAO",
-    color="PROD_IMPROD",
-    barmode="stack",
-    text_auto=".3s",
-    labels={
-        "ANO_TEXTO": "Ano",
-        "EXECUCAO": "Quantidade executada",
-        "PROD_IMPROD": "Classificação",
-    },
-    color_discrete_map={
-        "P": "#2E7D32",
-        "I": "#C62828",
-    },
-)
-
-fig_produtividade.update_layout(
-    legend_title_text="Produtividade",
-)
-
-st.plotly_chart(
-    fig_produtividade,
+st.dataframe(
+    tabela_tipo_os,
     use_container_width=True,
+    hide_index=True,
+    column_config={
+        "TIPO_OS": st.column_config.TextColumn(
+            "Tipo de OS",
+        ),
+        "QTDE_MEDIA_2025": st.column_config.NumberColumn(
+            "Qtde 2025",
+            format="%.2f",
+        ),
+        "VALOR_MEDIO_2025": st.column_config.NumberColumn(
+            "Valor 2025",
+            format="R$ %.2f",
+        ),
+        "QTDE_MEDIA_2026": st.column_config.NumberColumn(
+            "Qtde 2026",
+            format="%.2f",
+        ),
+        "VALOR_MEDIO_2026": st.column_config.NumberColumn(
+            "Valor 2026",
+            format="R$ %.2f",
+        ),
+        "VAR_QTDE": st.column_config.NumberColumn(
+            "Var. Qtde",
+            format="%.1f%%",
+        ),
+        "VAR_VALOR": st.column_config.NumberColumn(
+            "Var. Valor",
+            format="%.1f%%",
+        ),
+    },
 )
 
-
-# =========================================================
-# DETAILED TABLE
-# =========================================================
-
-with st.expander("Ver dados consolidados"):
-    tabela_exibicao = resumo_mensal[
+with st.expander("Ver consolidação mensal"):
+    tabela_mensal = resumo_mensal[
         [
             "ANO",
-            "MES_NOME",
+            "MES",
             "EXECUCAO",
+            "PRODUCAO",
             "EQUIPES_ATIVAS",
-            "EXECUCAO_POR_EQUIPE",
+            "TOTAL_DIAS",
+            "MEDIA_QTD_DIARIA",
+            "MEDIA_PRODUCAO_DIARIA",
             "EXECUCAO_ACUMULADA",
         ]
     ].copy()
 
-    tabela_exibicao.columns = [
+    tabela_mensal.columns = [
         "Ano",
         "Mês",
         "Execução",
+        "Produção",
         "Equipes ativas",
-        "Execução por equipe",
+        "Equipe-dias",
+        "Média diária por equipe",
+        "Produção diária por equipe",
         "Execução acumulada",
     ]
 
     st.dataframe(
-        tabela_exibicao,
+        tabela_mensal,
         use_container_width=True,
         hide_index=True,
         column_config={
             "Execução": st.column_config.NumberColumn(
-                format="%d"
+                format="%d",
+            ),
+            "Produção": st.column_config.NumberColumn(
+                format="R$ %.2f",
             ),
             "Equipes ativas": st.column_config.NumberColumn(
-                format="%d"
+                format="%d",
             ),
-            "Execução por equipe": st.column_config.NumberColumn(
-                format="%.1f"
+            "Equipe-dias": st.column_config.NumberColumn(
+                format="%d",
+            ),
+            "Média diária por equipe": st.column_config.NumberColumn(
+                format="%.2f",
+            ),
+            "Produção diária por equipe": st.column_config.NumberColumn(
+                format="R$ %.2f",
             ),
             "Execução acumulada": st.column_config.NumberColumn(
-                format="%d"
+                format="%d",
             ),
         },
     )
