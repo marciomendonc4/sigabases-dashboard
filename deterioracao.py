@@ -721,7 +721,7 @@ tipo_comparacao = st.radio(
 
 if tipo_comparacao == "Absoluta":
     coluna_grafico = "EXECUCAO"
-    titulo_eixo_y = "Quantidade executada"
+    titulo_eixo_y = "Demanda"
     formato_hover = ":,.0f"
 else:
     coluna_grafico = "MEDIA_QTD_DIARIA"
@@ -864,7 +864,7 @@ fig_grupo = px.bar(
         "GRUPO_OS": ordem_grupos
     },
     labels={
-        "EXECUCAO": "Quantidade executada",
+        "EXECUCAO": "Demanda",
         "GRUPO_OS": "Grupo OS",
         "ANO_TEXTO": "Ano",
     },
