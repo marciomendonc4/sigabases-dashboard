@@ -330,6 +330,13 @@ def calcular_medias_tipo_os(df):
         )
     )
 
+    medias["TICKET_MEDIO"] = (
+        medias["PRODUCAO"]
+        .div(
+            medias["QTD"].replace(0, pd.NA)
+        )
+    )
+
     return medias
 
 
@@ -342,9 +349,10 @@ def criar_tabela_tipo_os(df):
             index="TIPO_OS",
             columns="ANO",
             values=[
-                "QTDE_MEDIA",
-                "VALOR_MEDIO",
-            ],
+            "QTDE_MEDIA",
+            "VALOR_MEDIO",
+            "TICKET_MEDIO",
+        ],
         )
     )
 
@@ -358,8 +366,10 @@ def criar_tabela_tipo_os(df):
     colunas_esperadas = [
         "QTDE_MEDIA_2025",
         "VALOR_MEDIO_2025",
+        "TICKET_MEDIO_2025",
         "QTDE_MEDIA_2026",
         "VALOR_MEDIO_2026",
+        "TICKET_MEDIO_2026",
     ]
 
     for coluna in colunas_esperadas:
@@ -382,6 +392,17 @@ def criar_tabela_tipo_os(df):
         .div(
             tabela[
                 "VALOR_MEDIO_2025"
+            ].replace(0, pd.NA)
+        )
+        .sub(1)
+        .mul(100)
+    )
+
+    tabela["VAR_TICKET"] = (
+        tabela["TICKET_MEDIO_2026"]
+        .div(
+            tabela[
+                "TICKET_MEDIO_2025"
             ].replace(0, pd.NA)
         )
         .sub(1)
@@ -422,13 +443,35 @@ def criar_tabela_tipo_os(df):
         else 0
     )
 
+    ticket_2025 = (
+        total_2025["PRODUCAO"].iloc[0]
+        / total_2025["EXECUCAO"].iloc[0]
+        if (
+            not total_2025.empty
+            and total_2025["EXECUCAO"].iloc[0] != 0
+        )
+        else 0
+    )
+
+    ticket_2026 = (
+        total_2026["PRODUCAO"].iloc[0]
+        / total_2026["EXECUCAO"].iloc[0]
+        if (
+            not total_2026.empty
+            and total_2026["EXECUCAO"].iloc[0] != 0
+        )
+        else 0
+    )
+
     linha_total = pd.DataFrame(
         {
             "TIPO_OS": ["TOTAL"],
             "QTDE_MEDIA_2025": [qtd_2025],
             "VALOR_MEDIO_2025": [valor_2025],
+            "TICKET_MEDIO_2025": [ticket_2025],
             "QTDE_MEDIA_2026": [qtd_2026],
             "VALOR_MEDIO_2026": [valor_2026],
+            "TICKET_MEDIO_2026": [ticket_2026],
             "VAR_QTDE": [
                 calcular_variacao(
                     qtd_2025,
@@ -441,6 +484,12 @@ def criar_tabela_tipo_os(df):
                     valor_2026,
                 )
             ],
+            "VAR_TICKET": [
+                calcular_variacao(
+                    ticket_2025,
+                    ticket_2026,
+                )
+            ],
         }
     )
 
@@ -449,10 +498,13 @@ def criar_tabela_tipo_os(df):
             "TIPO_OS",
             "QTDE_MEDIA_2025",
             "VALOR_MEDIO_2025",
+            "TICKET_MEDIO_2025",
             "QTDE_MEDIA_2026",
             "VALOR_MEDIO_2026",
+            "TICKET_MEDIO_2026",
             "VAR_QTDE",
             "VAR_VALOR",
+            "VAR_TICKET",
         ]
     ]
 
@@ -800,6 +852,10 @@ st.dataframe(
             "Valor 2025",
             format="R$ %.2f",
         ),
+        "TICKET_MEDIO_2025": st.column_config.NumberColumn(
+            "Ticket Médio 2025",
+            format="R$ %.2f",
+        ),
         "QTDE_MEDIA_2026": st.column_config.NumberColumn(
             "Qtde 2026",
             format="%.2f",
@@ -808,12 +864,20 @@ st.dataframe(
             "Valor 2026",
             format="R$ %.2f",
         ),
+        "TICKET_MEDIO_2026": st.column_config.NumberColumn(
+            "Ticket Médio 2026",
+            format="R$ %.2f",
+        ),
         "VAR_QTDE": st.column_config.NumberColumn(
             "Var. Qtde",
             format="%.1f%%",
         ),
         "VAR_VALOR": st.column_config.NumberColumn(
             "Var. Valor",
+            format="%.1f%%",
+        ),
+        "VAR_TICKET": st.column_config.NumberColumn(
+            "Var. Ticket",
             format="%.1f%%",
         ),
     },
