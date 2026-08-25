@@ -93,6 +93,14 @@ st.sidebar.header("Filtros")
 
 df_filtrado = df.copy()
 
+df_filtrado["COR_MAPA"] = df_filtrado["PACOTE"].apply(
+    lambda pacote: (
+        [46, 125, 50, 200]
+        if pacote == "COM PROJETO"
+        else [198, 40, 40, 200]
+    )
+)
+
 df_filtrado = aplicar_filtro(
     df_filtrado,
     "REGIONAL",
@@ -181,7 +189,7 @@ camada_pontos = pdk.Layer(
     "ScatterplotLayer",
     data=df_filtrado,
     get_position="[LONGITUDE, LATITUDE]",
-    get_fill_color=[21, 101, 192, 190],
+    get_fill_color="COR_MAPA",
     get_line_color=[255, 255, 255, 220],
     get_radius=350,
     radius_min_pixels=6,
