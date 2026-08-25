@@ -598,97 +598,81 @@ col4.metric(
     ),
 )
 
-col_esquerda, col_direita = st.columns(2)
+st.subheader("Comparativo de execução mensal")
 
-with col_esquerda:
-    st.subheader("Execução mensal")
+tipo_comparacao = st.radio(
+    "Forma de comparação",
+    options=[
+        "Absoluta",
+        "Proporcional",
+    ],
+    horizontal=True,
+    label_visibility="collapsed",
+)
 
-    fig_execucao = px.line(
-        resumo_mensal,
-        x="MES",
-        y="EXECUCAO",
-        color="ANO_TEXTO",
-        markers=True,
-        labels={
-            "MES": "Mês",
-            "EXECUCAO": "Quantidade executada",
-            "ANO_TEXTO": "Ano",
-        },
-        color_discrete_map={
-            "2025": "#7F8C8D",
-            "2026": "#1565C0",
-        },
+if tipo_comparacao == "Absoluta":
+    coluna_grafico = "EXECUCAO"
+    titulo_eixo_y = "Quantidade executada"
+    formato_hover = ":,.0f"
+else:
+    coluna_grafico = "MEDIA_QTD_DIARIA"
+    titulo_eixo_y = "Atividades por equipe/dia"
+    formato_hover = ":.2f"
+
+fig_execucao = px.line(
+    resumo_mensal,
+    x="MES",
+    y=coluna_grafico,
+    color="ANO_TEXTO",
+    markers=True,
+    labels={
+        "MES": "Mês",
+        coluna_grafico: titulo_eixo_y,
+        "ANO_TEXTO": "Ano",
+    },
+    color_discrete_map={
+        "2025": "#7F8C8D",
+        "2026": "#1565C0",
+    },
+)
+
+fig_execucao.update_traces(
+    hovertemplate=(
+        "<b>%{fullData.name}</b><br>"
+        "Mês: %{x}<br>"
+        f"{titulo_eixo_y}: %{{y{formato_hover}}}"
+        "<extra></extra>"
     )
+)
 
-    fig_execucao.update_xaxes(
-        tickmode="array",
-        tickvals=list(range(1, 9)),
-        ticktext=[
-            "Jan",
-            "Fev",
-            "Mar",
-            "Abr",
-            "Mai",
-            "Jun",
-            "Jul",
-            "Ago",
-        ],
-    )
+fig_execucao.update_xaxes(
+    tickmode="array",
+    tickvals=list(range(1, 9)),
+    ticktext=[
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+    ],
+)
 
-    fig_execucao.update_layout(
-        hovermode="x unified",
-        legend_title_text="Ano",
-    )
+fig_execucao.update_yaxes(
+    title=titulo_eixo_y,
+)
 
-    st.plotly_chart(
-        fig_execucao,
-        use_container_width=True,
-    )
+fig_execucao.update_layout(
+    hovermode="x unified",
+    legend_title_text="Ano",
+)
 
-with col_direita:
-    st.subheader("Média diária por equipe")
-
-    fig_media = px.line(
-        resumo_mensal,
-        x="MES",
-        y="MEDIA_QTD_DIARIA",
-        color="ANO_TEXTO",
-        markers=True,
-        labels={
-            "MES": "Mês",
-            "MEDIA_QTD_DIARIA": "Atividades por equipe/dia",
-            "ANO_TEXTO": "Ano",
-        },
-        color_discrete_map={
-            "2025": "#7F8C8D",
-            "2026": "#D84315",
-        },
-    )
-
-    fig_media.update_xaxes(
-        tickmode="array",
-        tickvals=list(range(1, 9)),
-        ticktext=[
-            "Jan",
-            "Fev",
-            "Mar",
-            "Abr",
-            "Mai",
-            "Jun",
-            "Jul",
-            "Ago",
-        ],
-    )
-
-    fig_media.update_layout(
-        hovermode="x unified",
-        legend_title_text="Ano",
-    )
-
-    st.plotly_chart(
-        fig_media,
-        use_container_width=True,
-    )
+st.plotly_chart(
+    fig_execucao,
+    use_container_width=True,
+)
 
 st.subheader("Execução acumulada")
 
