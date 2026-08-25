@@ -224,6 +224,40 @@ tooltip = {
 
 st.subheader("Distribuição geográfica")
 
+st.markdown(
+    """
+    <div style="
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        margin-bottom: 10px;
+    ">
+        <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="
+                width: 14px;
+                height: 14px;
+                background-color: rgb(46, 125, 50);
+                border-radius: 50%;
+                display: inline-block;
+            "></span>
+            <span>Com Projeto</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="
+                width: 14px;
+                height: 14px;
+                background-color: rgb(198, 40, 40);
+                border-radius: 50%;
+                display: inline-block;
+            "></span>
+            <span>Sem Projeto</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.pydeck_chart(
     pdk.Deck(
         layers=[camada_pontos],
