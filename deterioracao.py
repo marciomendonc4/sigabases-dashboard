@@ -4,12 +4,12 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="Comparativo de Execução",
+    page_title="Comparativo de Demanda",
     page_icon="📊",
     layout="wide",
 )
 
-st.title("Comparativo de Execução — 2025 × 2026")
+st.title("Comparativo de Demanda — 2025 × 2026")
 st.caption("Período: 01/01 a 24/08")
 
 
@@ -707,7 +707,7 @@ col4.metric(
     ),
 )
 
-st.subheader("Comparativo de execução mensal")
+st.subheader("Comparativo de demanda mensal")
 
 tipo_comparacao = st.radio(
     "Forma de comparação",
@@ -783,7 +783,7 @@ st.plotly_chart(
     use_container_width=True,
 )
 
-st.subheader("Execução acumulada")
+st.subheader("Demanda acumulada")
 
 fig_acumulado = px.line(
     resumo_mensal,
@@ -793,7 +793,7 @@ fig_acumulado = px.line(
     markers=True,
     labels={
         "MES": "Mês",
-        "EXECUCAO_ACUMULADA": "Execução acumulada",
+        "EXECUCAO_ACUMULADA": "Demanda acumulada",
         "ANO_TEXTO": "Ano",
     },
     color_discrete_map={
@@ -887,7 +887,7 @@ st.plotly_chart(
     use_container_width=True,
 )
 
-st.subheader("Execução média diária por tipo de OS")
+st.subheader("Demanda média diária por tipo de OS")
 
 tabela_tipo_os = criar_tabela_tipo_os(
     df_filtrado
@@ -958,13 +958,13 @@ with st.expander("Ver consolidação mensal"):
     tabela_mensal.columns = [
         "Ano",
         "Mês",
-        "Execução",
+        "Demanda",
         "Produção",
         "Equipes ativas",
         "Equipe-dias",
         "Média diária por equipe",
         "Produção diária por equipe",
-        "Execução acumulada",
+        "Demanda acumulada",
     ]
 
     st.dataframe(
@@ -972,7 +972,7 @@ with st.expander("Ver consolidação mensal"):
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Execução": st.column_config.NumberColumn(
+            "Demanda": st.column_config.NumberColumn(
                 format="%d",
             ),
             "Produção": st.column_config.NumberColumn(
@@ -990,7 +990,7 @@ with st.expander("Ver consolidação mensal"):
             "Produção diária por equipe": st.column_config.NumberColumn(
                 format="R$ %.2f",
             ),
-            "Execução acumulada": st.column_config.NumberColumn(
+            "Demanda acumulada": st.column_config.NumberColumn(
                 format="%d",
             ),
         },
