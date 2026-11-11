@@ -196,12 +196,18 @@ st.subheader("Distribuição geográfica")
 if dados_mapa.empty:
     st.info("Nenhuma instalação com coordenadas válidas para os filtros selecionados.")
 else:
-    dados_mapa["COR_MAPA"] = dados_mapa["PACOTE"].apply(
-        lambda pacote: (
-            [46, 125, 50, 200]
-            if pacote == "COM PROJETO"
-            else [198, 40, 40, 200]
-        )
+    cores_saneado = {
+        "SEM AÇÃO MAPEADA": (107, 114, 128),
+        "PENDENTE LEVANTAMENTO": (37, 99, 235),
+        "PENDENTE VIABILIDADE": (217, 119, 6),
+        "RESTRIÇÃO OBRA GRANDE PORTE": (190, 24, 93),
+    }
+    cores_visiveis = {
+        status: cores_saneado.get(status, (13, 148, 136))
+        for status in sorted(dados_mapa["SANEADO"].unique())
+    }
+    dados_mapa["COR_MAPA"] = dados_mapa["SANEADO"].map(
+        lambda status: [*cores_visiveis[status], 200]
     )
 
     for coluna in colunas_tooltip:
@@ -253,9 +259,12 @@ else:
         },
     }
 
-    st.markdown(
-        "🟢 **Com Projeto** &nbsp;&nbsp;&nbsp;&nbsp; 🔴 **Sem Projeto**"
+    legenda = " &nbsp;&nbsp; ".join(
+        f'<span style="color: rgb({r}, {g}, {b})">●</span> '
+        f'<strong>{escape(status)}</strong>'
+        for status, (r, g, b) in cores_visiveis.items()
     )
+    st.markdown(legenda, unsafe_allow_html=True)
 
     st.pydeck_chart(
         pdk.Deck(
