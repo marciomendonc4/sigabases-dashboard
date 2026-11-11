@@ -240,21 +240,23 @@ else:
     )
 
     tooltip = {
-        "html": """
-            <b>Regional:</b> {REGIONAL}<br>
-            <b>Seccional:</b> {SECCIONAL}<br>
-            <b>Município:</b> {MUNICIPIO}<br>
-            <b>Cidade:</b> {CIDADE}<br>
-            <b>Bairro:</b> {BAIRRO}<br>
-            <b>Pacote:</b> {PACOTE}<br>
-            <b>Saneado:</b> {SANEADO}<br>
-            <b>Instalação:</b> {INSTALACAO}<br>
-            <b>Última observação de visita:</b> {ULTIMA_OBS_VISITA}
-        """,
+        "html": (
+            "<b>Instalação:</b> {INSTALACAO}<br>"
+            "<b>Última observação de visita:</b> {ULTIMA_OBS_VISITA}<br>"
+            "<b>Saneado:</b> {SANEADO}<br>"
+            "<b>Regional:</b> {REGIONAL}<br>"
+            "<b>Seccional:</b> {SECCIONAL}<br>"
+            "<b>Município:</b> {MUNICIPIO}<br>"
+            "<b>Cidade:</b> {CIDADE}<br>"
+            "<b>Bairro:</b> {BAIRRO}<br>"
+            "<b>Pacote:</b> {PACOTE}"
+        ),
         "style": {
             "backgroundColor": "#202124",
             "color": "white",
-            "whiteSpace": "pre-wrap",
+            "whiteSpace": "normal",
+            "overflowWrap": "anywhere",
+            "lineHeight": "1.3",
             "maxWidth": "420px",
         },
     }
